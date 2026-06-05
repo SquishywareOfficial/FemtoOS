@@ -41,6 +41,7 @@ You can pick up one of these cheap modules [here](https://s.click.aliexpress.com
 Use Arduino IDE, or `arduino-cli`:
 
 ```sh
+arduino-cli lib install U8g2
 arduino-cli compile --fqbn esp32:esp32:esp32c3 esp32-c3-games
 arduino-cli upload --fqbn esp32:esp32:esp32c3 --port /dev/cu.usbmodem1101 esp32-c3-games
 ```
