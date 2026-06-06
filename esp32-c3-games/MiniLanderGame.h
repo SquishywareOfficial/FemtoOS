@@ -22,6 +22,9 @@ class MiniLanderGame : public Game {
     };
 
     void loadLevel();
+    void loadBestLevel();
+    void saveBestLevel();
+    void recordLandedLevel();
     float levelGravity() const;
     float levelSafeSpeed() const;
     bool shouldShowBurnHint() const;
@@ -35,6 +38,8 @@ class MiniLanderGame : public Game {
     uint32_t left_;
     LanderState landerState_ = LanderState::Falling;
     uint8_t level_ = 1;
+    uint8_t bestLevel_ = 0;
+    uint16_t bestInitials_ = 0;
     float altitude_ = 0.0f;
     float velocity_ = 0.0f;
     float fuel_ = 0.0f;
@@ -45,4 +50,5 @@ class MiniLanderGame : public Game {
     bool briefingCanAcceptInput_ = false;
     bool thrusting_ = false;
     bool crashed_ = false;
+    bool bestLoaded_ = false;
 };

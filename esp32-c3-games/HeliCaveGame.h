@@ -5,11 +5,14 @@
 class HeliCaveGame : public Game {
   public:
     HeliCaveGame(uint32_t width, uint32_t height, uint32_t left);
+    bool hasCustomOverlay() const override;
 
   protected:
     void onGameReset() override;
     void updateRunning(uint32_t deltaMs, const ButtonInput& input) override;
     void drawRunning(U8G2& u8g2) override;
+    void drawStart(U8G2& u8g2) override;
+    void drawEnd(U8G2& u8g2) override;
 
   private:
     static constexpr uint8_t PLAYER_W = 5;
@@ -29,6 +32,8 @@ class HeliCaveGame : public Game {
     uint16_t nextRand();
     int clampInt(int value, int minValue, int maxValue) const;
     int nextGapTop(int previousGapTop);
+    void loadBestScore();
+    void saveBestScore();
     void spawnSegment(float x);
     bool collidesWithSegment(const Segment& segment) const;
 
@@ -36,7 +41,12 @@ class HeliCaveGame : public Game {
     float playerY_ = 0.0f;
     float playerVy_ = 0.0f;
     float scrollSpeed_ = 16.0f;
+    uint32_t scoreMs_ = 0;
+    uint16_t score_ = 0;
+    uint16_t bestScore_ = 0;
+    uint16_t bestInitials_ = 0;
     int lastGapTop_ = 10;
     uint16_t randState_ = 0xACE1;
+    bool bestLoaded_ = false;
     Segment segments_[SEGMENT_COUNT] = {};
 };

@@ -62,6 +62,11 @@ InitialsGame initialsGame(GAME_WIDTH, GAME_HEIGHT);
 CreditsGame creditsGame(GAME_WIDTH, GAME_HEIGHT);
 
 Game* games[] = {
+    &breakoutGame,
+    &microRacerGame,
+    &defenderMiniGame,
+    &jumpGame,
+    &heliCaveGame,
     &miniLanderGame,
     &needSpeedGame,
     &noonShooterGame,
@@ -73,12 +78,7 @@ Game* games[] = {
     &tinyGolfGame,
     &towerStackerGame,
     &initialsGame,
-    &creditsGame,
-    &breakoutGame,
-    &microRacerGame,
-    &defenderMiniGame,
-    &jumpGame,
-    &heliCaveGame
+    &creditsGame
   };
 constexpr uint8_t GAME_COUNT = sizeof(games) / sizeof(games[0]);
 

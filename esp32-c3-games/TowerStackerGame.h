@@ -16,6 +16,7 @@ class TowerStackerGame : public Game {
 
   private:
     static constexpr uint8_t MAX_LAYERS = 18;
+    static constexpr uint8_t LEVEL_HEIGHT = 10;
     static constexpr int BLOCK_H = 3;
     static constexpr int HUD_H = 7;
 
@@ -26,6 +27,7 @@ class TowerStackerGame : public Game {
 
     void loadHighScore();
     void saveHighScore();
+    void startTowerLevel();
     void dropMovingBlock();
     void prepareNextBlock(int blockWidth);
     int layerY(uint8_t layer, uint8_t firstVisibleLayer) const;
@@ -33,8 +35,10 @@ class TowerStackerGame : public Game {
     uint32_t left_;
     Layer layers_[MAX_LAYERS] = {};
     uint8_t layerCount_ = 0;
-    uint8_t score_ = 0;
-    uint8_t highScore_ = 0;
+    uint8_t level_ = 1;
+    uint8_t towerHeight_ = 0;
+    uint16_t score_ = 0;
+    uint16_t highScore_ = 0;
     uint16_t highScoreInitials_ = 0;
     bool highScoreLoaded_ = false;
     float movingX_ = 0.0f;

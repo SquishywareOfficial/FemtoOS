@@ -1,8 +1,13 @@
 #include "BreakoutGame.h"
 
+#include <Preferences.h>
 #include <U8g2lib.h>
 
+#include "PlayerProfile.h"
+
 namespace {
+Preferences breakoutPrefs;
+
 int clampInt(int value, int minValue, int maxValue) {
   if (value < minValue) {
     return minValue;
@@ -27,13 +32,26 @@ float clampFloat(float value, float minValue, float maxValue) {
 BreakoutGame::BreakoutGame(uint32_t width, uint32_t height, uint32_t left)
     : Game("Breakout", width, height), left_(left) {}
 
+bool BreakoutGame::hasCustomOverlay() const {
+  return true;
+}
+
 void BreakoutGame::onGameReset() {
+  loadBestScore();
   paddleX_ = 24.0f;
   paddleDir_ = 1;
-  ballX_ = 35.0f;
-  ballY_ = 20.0f;
-  ballVX_ = 24.0f;
-  ballVY_ = -22.0f;
+  level_ = 1;
+  score_ = 0;
+  loadLevel();
+}
+
+void BreakoutGame::loadLevel() {
+  paddleX_ = 24.0f;
+  paddleDir_ = 1;
+  resetBall();
+  const float speed = 1.0f + static_cast<float>(level_ - 1) * 0.12f;
+  ballVX_ *= speed;
+  ballVY_ *= speed;
   bricksLeft_ = 0;
   for (uint8_t row = 0; row < BRICK_ROWS; row++) {
     for (uint8_t col = 0; col < BRICK_COLS; col++) {
@@ -41,6 +59,13 @@ void BreakoutGame::onGameReset() {
       bricksLeft_++;
     }
   }
+}
+
+void BreakoutGame::resetBall() {
+  ballX_ = 35.0f;
+  ballY_ = 20.0f;
+  ballVX_ = 24.0f;
+  ballVY_ = -22.0f;
 }
 
 void BreakoutGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
@@ -94,6 +119,11 @@ void BreakoutGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
       if (ballXi >= bx && ballXi < (bx + BRICK_WIDTH - 1) && ballYi >= by && ballYi < (by + BRICK_HEIGHT - 1)) {
         bricks_[row][col] = false;
         bricksLeft_--;
+        score_++;
+        if (score_ > bestScore_) {
+          bestScore_ = score_;
+          saveBestScore();
+        }
         brickHit = true;
 
         const float brickLeft = static_cast<float>(bx);
@@ -117,10 +147,16 @@ void BreakoutGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
   }
 
   if (bricksLeft_ == 0) {
-    endGame();
+    level_++;
+    loadLevel();
+    return;
   }
 
   if (ballY_ >= static_cast<float>(height - 1)) {
+    if (score_ > bestScore_) {
+      bestScore_ = score_;
+      saveBestScore();
+    }
     endGame();
   }
 }
@@ -139,4 +175,82 @@ void BreakoutGame::drawRunning(U8G2& u8g2) {
   const int ballY = clampInt(static_cast<int>(ballY_), 1, static_cast<int>(height) - 2);
   u8g2.drawBox(left_ + paddleX, height - 4, PADDLE_WIDTH, 2);
   u8g2.drawBox(left_ + ballX, ballY, 2, 2);
+  u8g2.setFont(u8g2_font_4x6_tr);
+  u8g2.setCursor(left_ + 2, 6);
+  u8g2.print("L");
+  u8g2.print(level_);
+  u8g2.print(" ");
+  u8g2.print(score_);
+}
+
+void BreakoutGame::drawStart(U8G2& u8g2) {
+  loadBestScore();
+  u8g2.drawFrame(0, 0, width + 2, height);
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+  } else if (showStartScorePage()) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 10, "Top Bricks");
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.setCursor(3, 24);
+    if (bestScore_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" ");
+      u8g2.print(bestScore_);
+    }
+  } else {
+    u8g2.drawBox(6, 28, 20, 2);
+    u8g2.drawDisc(44, 17, 2);
+    u8g2.drawLine(12, 24, 30, 15);
+    u8g2.drawLine(30, 15, 44, 17);
+    u8g2.drawPixel(49, 15);
+    u8g2.drawPixel(53, 13);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 9, gameTitle());
+  }
+}
+
+void BreakoutGame::drawEnd(U8G2& u8g2) {
+  u8g2.drawFrame(0, 0, width + 2, height);
+  u8g2.setFont(u8g2_font_5x8_tr);
+  u8g2.drawStr(3, 9, "Ball Lost");
+  u8g2.setFont(u8g2_font_4x6_tr);
+  u8g2.setCursor(3, 20);
+  u8g2.print("Bricks ");
+  u8g2.print(score_);
+  u8g2.setCursor(3, 29);
+  u8g2.print("Best ");
+  u8g2.print(bestScore_);
+  if (bestScore_ > 0) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.print(" ");
+    u8g2.print(initials);
+  }
+  u8g2.drawStr(3, 38, "Tap retry Hold menu");
+}
+
+void BreakoutGame::loadBestScore() {
+  if (bestLoaded_) {
+    return;
+  }
+  breakoutPrefs.begin("breakout", true);
+  bestScore_ = breakoutPrefs.getUShort("best", 0);
+  bestInitials_ = breakoutPrefs.getUShort("init", PlayerProfile::defaultInitials());
+  breakoutPrefs.end();
+  bestLoaded_ = true;
+}
+
+void BreakoutGame::saveBestScore() {
+  bestInitials_ = PlayerProfile::loadInitials();
+  breakoutPrefs.begin("breakout", false);
+  breakoutPrefs.putUShort("best", bestScore_);
+  breakoutPrefs.putUShort("init", bestInitials_);
+  breakoutPrefs.end();
 }

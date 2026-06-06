@@ -1,14 +1,28 @@
 #include "HeliCaveGame.h"
 
+#include <Preferences.h>
 #include <U8g2lib.h>
+
+#include "PlayerProfile.h"
+
+namespace {
+Preferences heliPrefs;
+}
 
 HeliCaveGame::HeliCaveGame(uint32_t width, uint32_t height, uint32_t left)
     : Game("Heli Cave", width, height), left_(left) {}
 
+bool HeliCaveGame::hasCustomOverlay() const {
+  return true;
+}
+
 void HeliCaveGame::onGameReset() {
+  loadBestScore();
   playerY_ = static_cast<float>(height) * 0.5f;
   playerVy_ = 0.0f;
   scrollSpeed_ = 16.0f;
+  scoreMs_ = 0;
+  score_ = 0;
   lastGapTop_ = static_cast<int>(height / 2) - 6;
   randState_ ^= static_cast<uint16_t>(width * 31 + height * 17);
 
@@ -79,14 +93,25 @@ void HeliCaveGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
 
   for (uint8_t i = 0; i < SEGMENT_COUNT; i++) {
     if (segments_[i].active && collidesWithSegment(segments_[i])) {
+      if (score_ > bestScore_) {
+        bestScore_ = score_;
+        saveBestScore();
+      }
       endGame();
       return;
     }
   }
 
-  scrollSpeed_ += 0.3f * deltaSec;
-  if (scrollSpeed_ > 25.0f) {
-    scrollSpeed_ = 25.0f;
+  scoreMs_ += deltaMs;
+  score_ = scoreMs_ / 1000;
+  if (score_ > bestScore_) {
+    bestScore_ = score_;
+    saveBestScore();
+  }
+
+  scrollSpeed_ += 0.75f * deltaSec;
+  if (scrollSpeed_ > 38.0f) {
+    scrollSpeed_ = 38.0f;
   }
 }
 
@@ -113,6 +138,66 @@ void HeliCaveGame::drawRunning(U8G2& u8g2) {
   const int py = static_cast<int>(playerY_);
   u8g2.drawBox(left_ + 12, py, PLAYER_W, PLAYER_H);
   u8g2.drawPixel(left_ + 16, py + 1);
+  u8g2.setFont(u8g2_font_4x6_tr);
+  u8g2.setCursor(left_ + 2, 6);
+  u8g2.print(score_);
+}
+
+void HeliCaveGame::drawStart(U8G2& u8g2) {
+  loadBestScore();
+  u8g2.drawFrame(0, 0, width + 2, height);
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+  } else if (showStartScorePage()) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 10, "Top Time");
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.setCursor(3, 24);
+    if (bestScore_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" ");
+      u8g2.print(bestScore_);
+      u8g2.print("s");
+    }
+  } else {
+    u8g2.drawLine(1, 7, 71, 7);
+    u8g2.drawLine(1, 34, 71, 34);
+    u8g2.drawBox(24, 19, 12, 4);
+    u8g2.drawBox(18, 18, 7, 3);
+    u8g2.drawLine(28, 17, 28, 12);
+    u8g2.drawLine(20, 12, 37, 12);
+    u8g2.drawPixel(36, 21);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 9, gameTitle());
+  }
+}
+
+void HeliCaveGame::drawEnd(U8G2& u8g2) {
+  u8g2.drawFrame(0, 0, width + 2, height);
+  u8g2.setFont(u8g2_font_5x8_tr);
+  u8g2.drawStr(3, 9, "Crashed");
+  u8g2.setFont(u8g2_font_4x6_tr);
+  u8g2.setCursor(3, 20);
+  u8g2.print("Time ");
+  u8g2.print(score_);
+  u8g2.print("s");
+  u8g2.setCursor(3, 29);
+  u8g2.print("Best ");
+  u8g2.print(bestScore_);
+  u8g2.print("s");
+  if (bestScore_ > 0) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.print(" ");
+    u8g2.print(initials);
+  }
+  u8g2.drawStr(3, 38, "Tap retry Hold menu");
 }
 
 uint16_t HeliCaveGame::nextRand() {
@@ -165,4 +250,23 @@ bool HeliCaveGame::collidesWithSegment(const Segment& segment) const {
   const int gapTop = segment.gapTop;
   const int gapBottom = segment.gapTop + segment.gapHeight - 1;
   return (playerTop < gapTop || playerBottom > gapBottom);
+}
+
+void HeliCaveGame::loadBestScore() {
+  if (bestLoaded_) {
+    return;
+  }
+  heliPrefs.begin("heli", true);
+  bestScore_ = heliPrefs.getUShort("best", 0);
+  bestInitials_ = heliPrefs.getUShort("init", PlayerProfile::defaultInitials());
+  heliPrefs.end();
+  bestLoaded_ = true;
+}
+
+void HeliCaveGame::saveBestScore() {
+  bestInitials_ = PlayerProfile::loadInitials();
+  heliPrefs.begin("heli", false);
+  heliPrefs.putUShort("best", bestScore_);
+  heliPrefs.putUShort("init", bestInitials_);
+  heliPrefs.end();
 }

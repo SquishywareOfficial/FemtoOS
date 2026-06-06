@@ -51,7 +51,7 @@ void PipeManiaGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
     if (input.click) {
       cyclePiece();
     }
-    if (input.down && input.holdMs > 260 && !placedThisHold_) {
+    if (input.down && input.holdMs > 180 && !placedThisHold_) {
       placePiece();
       placedThisHold_ = true;
     }
@@ -209,11 +209,11 @@ void PipeManiaGame::loadLevel() {
 }
 
 uint16_t PipeManiaGame::buildDelayMs() const {
-  return max<uint16_t>(5500, 12500 - level_ * 550);
+  return max<uint16_t>(9000, 22000 - level_ * 650);
 }
 
 uint16_t PipeManiaGame::flowDelayMs() const {
-  return max<uint16_t>(500, 1500 - level_ * 70);
+  return max<uint16_t>(650, 1800 - level_ * 70);
 }
 
 void PipeManiaGame::cyclePiece() {

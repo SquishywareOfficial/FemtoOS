@@ -1,14 +1,27 @@
 #include "DefenderMiniGame.h"
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include <U8g2lib.h>
+
+#include "PlayerProfile.h"
+
+namespace {
+Preferences defenderPrefs;
+}
 
 DefenderMiniGame::DefenderMiniGame(uint32_t width, uint32_t height, uint32_t left)
     : Game("Defender Mini", width, height), left_(left) {}
 
+bool DefenderMiniGame::hasCustomOverlay() const {
+  return true;
+}
+
 void DefenderMiniGame::onGameReset() {
+  loadBestScore();
   shipBand_ = 1;
   score_ = 0;
+  health_ = 5;
   spawnTimerMs_ = 0;
   shotTimerMs_ = 0;
   for (uint8_t i = 0; i < ENEMY_COUNT; i++) {
@@ -47,9 +60,11 @@ void DefenderMiniGame::updateRunning(uint32_t deltaMs, const ButtonInput& input)
     }
     enemies_[i].x -= enemyMove;
     if (enemies_[i].x <= 5.0f && enemies_[i].band == shipBand_) {
-      endGame();
+      enemies_[i].active = false;
+      loseHealth();
     } else if (enemies_[i].x < 0.0f) {
       enemies_[i].active = false;
+      loseHealth();
     }
   }
 
@@ -77,6 +92,10 @@ void DefenderMiniGame::updateRunning(uint32_t deltaMs, const ButtonInput& input)
         shots_[s].active = false;
         enemies_[e].active = false;
         score_++;
+        if (score_ > bestScore_) {
+          bestScore_ = score_;
+          saveBestScore();
+        }
         break;
       }
     }
@@ -99,6 +118,61 @@ void DefenderMiniGame::drawRunning(U8G2& u8g2) {
   u8g2.setFont(u8g2_font_4x6_tr);
   u8g2.setCursor(left_ + 2, 6);
   u8g2.print(score_);
+  u8g2.setCursor(left_ + 45, 6);
+  u8g2.print("H");
+  u8g2.print(health_);
+}
+
+void DefenderMiniGame::drawStart(U8G2& u8g2) {
+  loadBestScore();
+  u8g2.drawFrame(0, 0, width + 2, height);
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+  } else if (showStartScorePage()) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 10, "Top Kills");
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.setCursor(3, 24);
+    if (bestScore_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" ");
+      u8g2.print(bestScore_);
+    }
+  } else {
+    u8g2.drawTriangle(15, 22, 5, 17, 5, 27);
+    u8g2.drawLine(15, 22, 27, 22);
+    u8g2.drawPixel(34, 22);
+    u8g2.drawPixel(42, 18);
+    u8g2.drawFrame(55, 17, 5, 5);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 9, gameTitle());
+  }
+}
+
+void DefenderMiniGame::drawEnd(U8G2& u8g2) {
+  u8g2.drawFrame(0, 0, width + 2, height);
+  u8g2.setFont(u8g2_font_5x8_tr);
+  u8g2.drawStr(3, 9, "Defeated");
+  u8g2.setFont(u8g2_font_4x6_tr);
+  u8g2.setCursor(3, 20);
+  u8g2.print("Kills ");
+  u8g2.print(score_);
+  u8g2.setCursor(3, 29);
+  u8g2.print("Best ");
+  u8g2.print(bestScore_);
+  if (bestScore_ > 0) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.print(" ");
+    u8g2.print(initials);
+  }
+  u8g2.drawStr(3, 38, "Tap retry Hold menu");
 }
 
 int DefenderMiniGame::bandY(uint8_t band) const {
@@ -125,4 +199,32 @@ void DefenderMiniGame::spawnShot() {
       return;
     }
   }
+}
+
+void DefenderMiniGame::loseHealth() {
+  if (health_ > 0) {
+    health_--;
+  }
+  if (health_ == 0) {
+    endGame();
+  }
+}
+
+void DefenderMiniGame::loadBestScore() {
+  if (bestLoaded_) {
+    return;
+  }
+  defenderPrefs.begin("defender", true);
+  bestScore_ = defenderPrefs.getUShort("best", 0);
+  bestInitials_ = defenderPrefs.getUShort("init", PlayerProfile::defaultInitials());
+  defenderPrefs.end();
+  bestLoaded_ = true;
+}
+
+void DefenderMiniGame::saveBestScore() {
+  bestInitials_ = PlayerProfile::loadInitials();
+  defenderPrefs.begin("defender", false);
+  defenderPrefs.putUShort("best", bestScore_);
+  defenderPrefs.putUShort("init", bestInitials_);
+  defenderPrefs.end();
 }

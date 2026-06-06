@@ -19,14 +19,9 @@ bool TowerStackerGame::hasCustomOverlay() const {
 
 void TowerStackerGame::onGameReset() {
   loadHighScore();
-  const int baseW = 36;
-  layerCount_ = 1;
   score_ = 0;
-  layers_[0].x = (static_cast<int>(width) - baseW) / 2;
-  layers_[0].w = baseW;
-  movingDir_ = 1;
-  movingSpeed_ = 16.0f;
-  prepareNextBlock(baseW);
+  level_ = 1;
+  startTowerLevel();
 }
 
 void TowerStackerGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
@@ -52,9 +47,10 @@ void TowerStackerGame::drawRunning(U8G2& u8g2) {
   u8g2.drawFrame(left_, 0, width, height);
   u8g2.setFont(u8g2_font_4x6_tr);
   u8g2.setCursor(left_ + 2, 6);
+  u8g2.print("L");
+  u8g2.print(level_);
+  u8g2.print(" ");
   u8g2.print(score_);
-  u8g2.print("/");
-  u8g2.print(highScore_);
 
   const uint8_t visibleLayers = (height - HUD_H - 2) / BLOCK_H;
   uint8_t firstVisibleLayer = 0;
@@ -93,6 +89,10 @@ void TowerStackerGame::drawStart(U8G2& u8g2) {
       u8g2.print(highScore_);
     }
   } else {
+    u8g2.drawBox(33, 12, 9, 22);
+    u8g2.drawBox(29, 18, 17, 16);
+    u8g2.drawBox(25, 24, 25, 10);
+    u8g2.drawLine(18, 34, 56, 34);
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, gameTitle());
   }
@@ -123,7 +123,7 @@ void TowerStackerGame::loadHighScore() {
     return;
   }
   towerScorePrefs.begin("tower", true);
-  highScore_ = towerScorePrefs.getUChar("best", 0);
+  highScore_ = towerScorePrefs.getUShort("best", 0);
   highScoreInitials_ = towerScorePrefs.getUShort("init", PlayerProfile::defaultInitials());
   towerScorePrefs.end();
   highScoreLoaded_ = true;
@@ -132,9 +132,20 @@ void TowerStackerGame::loadHighScore() {
 void TowerStackerGame::saveHighScore() {
   highScoreInitials_ = PlayerProfile::loadInitials();
   towerScorePrefs.begin("tower", false);
-  towerScorePrefs.putUChar("best", highScore_);
+  towerScorePrefs.putUShort("best", highScore_);
   towerScorePrefs.putUShort("init", highScoreInitials_);
   towerScorePrefs.end();
+}
+
+void TowerStackerGame::startTowerLevel() {
+  const int baseW = 36;
+  layerCount_ = 1;
+  towerHeight_ = 0;
+  layers_[0].x = (static_cast<int>(width) - baseW) / 2;
+  layers_[0].w = baseW;
+  movingDir_ = 1;
+  movingSpeed_ = 15.0f + static_cast<float>(level_ - 1) * 3.0f;
+  prepareNextBlock(baseW);
 }
 
 void TowerStackerGame::dropMovingBlock() {
@@ -150,27 +161,41 @@ void TowerStackerGame::dropMovingBlock() {
   }
 
   if (layerCount_ >= MAX_LAYERS) {
-    endGame();
+    level_++;
+    startTowerLevel();
     return;
   }
 
-  layers_[layerCount_].x = leftEdge;
-  layers_[layerCount_].w = overlapW;
+  int nextX = leftEdge;
+  int nextW = overlapW;
+  const int miss = previous.w - overlapW;
+  if (miss <= 2) {
+    nextX = previous.x;
+    nextW = previous.w;
+  }
+  layers_[layerCount_].x = nextX;
+  layers_[layerCount_].w = nextW;
   layerCount_++;
-  score_ = layerCount_ - 1;
+  towerHeight_++;
+  score_++;
   if (score_ > highScore_) {
     highScore_ = score_;
     saveHighScore();
   }
 
-  prepareNextBlock(overlapW);
+  if (towerHeight_ >= LEVEL_HEIGHT) {
+    level_++;
+    startTowerLevel();
+  } else {
+    prepareNextBlock(nextW);
+  }
 }
 
 void TowerStackerGame::prepareNextBlock(int blockWidth) {
   movingW_ = blockWidth;
   movingX_ = 1.0f;
   movingDir_ = 1;
-  movingSpeed_ = min(32.0f, 16.0f + static_cast<float>(score_) * 0.9f);
+  movingSpeed_ = min(42.0f, 15.0f + static_cast<float>(level_ - 1) * 3.0f + static_cast<float>(towerHeight_) * 0.35f);
 }
 
 int TowerStackerGame::layerY(uint8_t layer, uint8_t firstVisibleLayer) const {

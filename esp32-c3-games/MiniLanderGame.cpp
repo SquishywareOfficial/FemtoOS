@@ -1,6 +1,7 @@
 #include "MiniLanderGame.h"
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include <U8g2lib.h>
 
 #include "PlayerProfile.h"
@@ -16,6 +17,7 @@ constexpr float THRUST = 48.0f;
 constexpr float FUEL_BURN = 24.0f;
 constexpr float BURN_CUE_REACTION_SEC = 0.35f;
 constexpr uint16_t BRIEFING_INPUT_LOCK_MS = 1000;
+Preferences landerPrefs;
 }
 
 MiniLanderGame::MiniLanderGame(uint32_t width, uint32_t height, uint32_t left)
@@ -28,6 +30,7 @@ bool MiniLanderGame::hasCustomOverlay() const {
 void MiniLanderGame::onGameReset() {
   pinMode(BURN_HINT_LED_PIN, OUTPUT);
   setBurnHintLed(false);
+  loadBestLevel();
   level_ = 1;
   crashed_ = false;
   loadLevel();
@@ -86,6 +89,7 @@ void MiniLanderGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
       velocity_ = 0.0f;
       landerState_ = LanderState::Landed;
       landedTimerMs_ = 0;
+      recordLandedLevel();
       setBurnHintLed(false);
     } else {
       crashed_ = true;
@@ -125,11 +129,19 @@ void MiniLanderGame::drawStart(U8G2& u8g2) {
     return;
   }
   if (showStartScorePage()) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
     u8g2.setFont(u8g2_font_5x8_tr);
-    u8g2.drawStr(3, 10, "Mission");
+    u8g2.drawStr(3, 10, "Best Level");
     u8g2.setFont(u8g2_font_4x6_tr);
-    u8g2.drawStr(3, 24, "Land softly");
-    u8g2.drawStr(3, 34, "Watch V/Fuel");
+    u8g2.setCursor(3, 24);
+    if (bestLevel_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" L");
+      u8g2.print(bestLevel_);
+    }
     return;
   }
   u8g2.drawCircle(17, 20, 12);
@@ -158,6 +170,33 @@ void MiniLanderGame::drawEnd(U8G2& u8g2) {
   drawSafeSpeedSign(u8g2, 57, 25, static_cast<int>(levelSafeSpeed() + 0.5f));
   u8g2.setFont(u8g2_font_4x6_tr);
   u8g2.drawStr(3, 39, "Tap retry Hold menu");
+}
+
+void MiniLanderGame::loadBestLevel() {
+  if (bestLoaded_) {
+    return;
+  }
+  landerPrefs.begin("lander", true);
+  bestLevel_ = landerPrefs.getUChar("best", 0);
+  bestInitials_ = landerPrefs.getUShort("init", PlayerProfile::defaultInitials());
+  landerPrefs.end();
+  bestLoaded_ = true;
+}
+
+void MiniLanderGame::saveBestLevel() {
+  bestInitials_ = PlayerProfile::loadInitials();
+  landerPrefs.begin("lander", false);
+  landerPrefs.putUChar("best", bestLevel_);
+  landerPrefs.putUShort("init", bestInitials_);
+  landerPrefs.end();
+}
+
+void MiniLanderGame::recordLandedLevel() {
+  loadBestLevel();
+  if (level_ > bestLevel_) {
+    bestLevel_ = level_;
+    saveBestLevel();
+  }
 }
 
 void MiniLanderGame::loadLevel() {

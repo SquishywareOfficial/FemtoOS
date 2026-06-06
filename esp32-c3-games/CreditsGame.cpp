@@ -5,7 +5,7 @@
 #include "Version.h"
 
 namespace {
-constexpr uint8_t CREDIT_PAGE_COUNT = 17;
+constexpr uint8_t CREDIT_PAGE_COUNT = 18;
 
 struct CreditPage {
   const char* game;
@@ -14,11 +14,11 @@ struct CreditPage {
 };
 
 const CreditPage CREDIT_PAGES[CREDIT_PAGE_COUNT] = {
-    {"Breakout", "atomic14", nullptr},
-    {"Micro Racer", "atomic14", nullptr},
-    {"Defender Mini", "atomic14", nullptr},
-    {"Jump Run", "atomic14", nullptr},
-    {"Heli Cave", "atomic14", nullptr},
+    {"Breakout", "atomic14", "thedarkfalcon"},
+    {"Micro Racer", "atomic14", "thedarkfalcon"},
+    {"Defender Mini", "atomic14", "thedarkfalcon"},
+    {"Jump Run", "atomic14", "thedarkfalcon"},
+    {"Heli Cave", "atomic14", "thedarkfalcon"},
     {"Tower Stacker", "thedarkfalcon", nullptr},
     {"Tiny Golf", "thedarkfalcon", nullptr},
     {"Mini Lander", "thedarkfalcon", nullptr},
@@ -31,6 +31,7 @@ const CreditPage CREDIT_PAGES[CREDIT_PAGE_COUNT] = {
     {"Blackjack", "thedarkfalcon", nullptr},
     {"Options", "thedarkfalcon", nullptr},
     {"Credits", "thedarkfalcon", nullptr},
+    {"Repo", "git.new/esp32games", nullptr},
 };
 
 void drawGithubHandle(U8G2& u8g2, int x, int y, const char* handle) {
@@ -80,13 +81,23 @@ void CreditsGame::drawRunning(U8G2& u8g2) {
   u8g2.drawStr(3, 9, credit.game);
 
   u8g2.setFont(u8g2_font_4x6_tr);
-  u8g2.drawStr(3, 19, "Developer");
-  drawGithubHandle(u8g2, 3, 28, credit.author1);
+  if (credit.game[0] == 'R') {
+    u8g2.drawStr(3, 19, "Repo URL");
+    u8g2.drawStr(3, 29, "git.new/");
+    u8g2.drawStr(3, 37, "esp32games");
+    return;
+  }
   if (credit.author2 != nullptr) {
-    drawGithubHandle(u8g2, 3, 35, credit.author2);
+    u8g2.drawStr(3, 18, "Created:atomic14");
+    u8g2.drawStr(3, 29, "Modified:");
+    u8g2.drawStr(3, 38, credit.author2);
   } else if (credit.author1[0] != 't') {
+    u8g2.drawStr(3, 19, "Developer");
+    drawGithubHandle(u8g2, 3, 28, credit.author1);
     u8g2.drawStr(3, 38, "Tap next");
   } else {
+    u8g2.drawStr(3, 19, "Developer");
+    drawGithubHandle(u8g2, 3, 28, credit.author1);
     u8g2.drawStr(54, 38, "Tap");
   }
 }
