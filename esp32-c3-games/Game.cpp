@@ -70,7 +70,8 @@ void Game::tick(uint32_t nowMs, bool buttonDown) {
 
     switch (phase_) {
         case GamePhase::Start:
-            if (input.click) {
+            // allow either a click or a long press to start a game (useful for timers)
+            if (input.click || input.longPress) {
                 startRunning();
             }
             break;

@@ -10,6 +10,14 @@ To create a new build with an incremented build number, run:
 
 If compiling manually with `arduino-cli compile`, bump `esp32-c3-games/Version.h` first and add a note here.
 
+## v1.1 b17
+
+- Added and refined two timer utilities: `Stopwatch` and `Countdown` (selection UI, top/bottom hints, hold/tap behaviors).
+- Fixed menu overlay drawing over utility UIs by giving timer apps a custom overlay; start screens now match other utility apps (`Tap to start` prompts).
+- Adjusted hint placement and sizing to avoid clipping on the 72x40 OLED.
+- Updated the browser simulator (`sim/`) to mirror the above UI and build-text to `v1.1 b17`.
+- Updated repository agent instructions to include a compact project overview and contributor guidance.
+
 ## v1.1 b16
 
 - Fixed Tower Stacker's near-perfect placement forgiveness so it snaps cleanly onto the supported block instead of drawing unsupported overhang.

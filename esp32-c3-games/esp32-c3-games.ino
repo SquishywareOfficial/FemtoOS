@@ -19,6 +19,8 @@
 #include "PlayerProfile.h"
 #include "TinyGolfGame.h"
 #include "TowerStackerGame.h"
+#include "StopwatchGame.h"
+#include "CountdownGame.h"
 
 class U8G2_SSD1306_72X40_NONAME_F_HW_I2C : public U8G2 {
   public:
@@ -60,6 +62,8 @@ TinyGolfGame tinyGolfGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 TowerStackerGame towerStackerGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 InitialsGame initialsGame(GAME_WIDTH, GAME_HEIGHT);
 CreditsGame creditsGame(GAME_WIDTH, GAME_HEIGHT);
+StopwatchGame stopwatchGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+CountdownGame countdownGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 
 Game* games[] = {
     &breakoutGame,
@@ -76,9 +80,11 @@ Game* games[] = {
     &pipeManiaGame,
     &blackjackGame,
     &tinyGolfGame,
-    &towerStackerGame,
-    &initialsGame,
-    &creditsGame
+  &towerStackerGame,
+  &stopwatchGame,
+  &countdownGame,
+  &initialsGame,
+  &creditsGame
   };
 constexpr uint8_t GAME_COUNT = sizeof(games) / sizeof(games[0]);
 

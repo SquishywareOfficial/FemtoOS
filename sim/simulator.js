@@ -3,7 +3,7 @@
   const H = 40;
   const LONG_MS = 700;
   const END_LOCK_MS = 500;
-  const BUILD_TEXT = "v1.1 b16";
+  const BUILD_TEXT = "v1.1 b17";
 
   const canvas = document.getElementById("oled");
   const ctx = canvas.getContext("2d");
@@ -459,6 +459,173 @@
       gfx.text(this.safeSpeed() >= 10 ? 52 : 55, 28, this.safeSpeed(), 7);
       gfx.text(3, 39, "Tap retry Hold menu");
     }
+  }
+
+  class StopwatchSim extends Game {
+    constructor() {
+      super("Stopwatch");
+      this.running = false;
+      this.elapsed = 0;
+    }
+    reset() {
+      this.running = false;
+      this.elapsed = 0;
+    }
+    update(dt, input, now) {
+      if (input.click) this.running = !this.running;
+      // long press resets stopwatch (do not return to menu)
+      if (input.longPress) {
+        this.running = false;
+        this.elapsed = 0;
+      }
+      if (this.running) this.elapsed += Math.round(dt * 1000);
+    }
+    draw() {
+      gfx.rect(0, 0, W, H);
+      const ms = this.elapsed % 1000;
+      const totalSec = Math.floor(this.elapsed / 1000);
+      const sec = totalSec % 60;
+      const min = Math.floor(totalSec / 60);
+      const cs = Math.floor(ms / 10);
+      const s = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+      gfx.center(22, s);
+      // tap hint at top, hold hint at bottom
+      gfx.text(3, 9, this.running ? "Tap=pause" : "Tap=start", 4);
+      // right-align hold hint
+      const hold = "Hold=Reset";
+      const holdX = Math.max(3, W - (textWidth(hold) + 2));
+      gfx.text(holdX, 36, hold, 4);
+    }
+    drawStart() { this.draw(); }
+  }
+
+  class CountdownSim extends Game {
+    constructor() {
+      super("Countdown");
+      this.DURATIONS = [10,20,30,60,120,180,240,300,360,420,480,540,600,900,1200,1500,1800,2400,3000,3600];
+      this.selected = 0; // default 10s (seconds-first)
+      this.duration = this.DURATIONS[this.selected] * 1000;
+      this.remaining = this.duration;
+      this.mode = 'select'; // 'select'|'running'|'paused'|'finished'
+      this.running = false;
+      this.finished = false;
+      this.flashMs = 0;
+      this.flashOn = false;
+    }
+    reset() {
+      this.duration = this.DURATIONS[this.selected] * 1000;
+      this.remaining = this.duration;
+      this.mode = 'select';
+      this.running = false;
+      this.finished = false;
+      this.flashMs = 0;
+      this.flashOn = false;
+      setLed(false);
+    }
+    update(dt, input, now) {
+      const ms = Math.round(dt * 1000);
+      if (this.mode === 'select') {
+        if (input.click) {
+          this.selected = (this.selected + 1) % this.DURATIONS.length;
+          this.duration = this.DURATIONS[this.selected] * 1000;
+          this.remaining = this.duration;
+        }
+        if (input.longPress) {
+          this.mode = 'running';
+          this.running = true;
+          this.finished = false;
+        }
+      } else if (this.mode === 'running') {
+        if (input.click) {
+          this.mode = 'paused';
+          this.running = false;
+        }
+        if (input.longPress) {
+          this.remaining = this.duration;
+          this.running = true;
+          this.mode = 'running';
+          this.finished = false;
+          this.flashOn = false;
+          this.flashMs = 0;
+        }
+        if (this.running) {
+          if (ms >= this.remaining) {
+            this.remaining = 0;
+            this.finished = true;
+            this.running = false;
+            this.mode = 'finished';
+            this.flashMs = 0;
+            this.flashOn = true;
+          } else {
+            this.remaining -= ms;
+          }
+        }
+      } else if (this.mode === 'paused') {
+        if (input.click) {
+          this.mode = 'running';
+          this.running = true;
+        }
+        if (input.longPress) {
+          // long-press while paused: return to selection screen
+          this.remaining = this.duration;
+          this.mode = 'select';
+          this.running = false;
+          this.finished = false;
+          this.flashOn = false;
+          this.flashMs = 0;
+          setLed(false);
+        }
+      } else if (this.mode === 'finished') {
+        if (input.click) {
+          this.remaining = this.duration;
+          this.finished = false;
+          this.mode = 'select';
+          setLed(false);
+        }
+        if (input.longPress) {
+          this.remaining = this.duration;
+          this.finished = false;
+          this.mode = 'select';
+          setLed(false);
+        }
+      }
+
+      if (this.mode === 'finished') {
+        this.flashMs += ms;
+        if (this.flashMs >= 300) {
+          this.flashMs = 0;
+          this.flashOn = !this.flashOn;
+          setLed(this.flashOn);
+        }
+      }
+    }
+    draw() {
+      if (this.mode === 'finished' && this.flashOn) {
+        gfx.box(0, 0, W, H);
+        gfx.text(12, 24, "TIME!", 7);
+        return;
+      }
+      gfx.rect(0, 0, W, H);
+      const totalSec = Math.floor(this.remaining / 1000);
+      const sec = totalSec % 60;
+      const min = Math.floor(totalSec / 60);
+      const s = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      gfx.center(24, s);
+        if (this.mode === 'select') {
+          gfx.text(3, 9, "Tap=cycle", 3);
+          gfx.text(3, 36, "Hold=start", 3);
+        } else if (this.mode === 'running') {
+          gfx.text(3, 9, "Tap=pause", 3);
+          gfx.text(3, 36, "Hold=restart", 3);
+        } else if (this.mode === 'paused') {
+          gfx.text(3, 9, "Tap=resume", 3);
+          gfx.text(3, 36, "Hold=select", 3);
+        } else if (this.mode === 'finished') {
+          gfx.text(3, 9, "Tap=reset", 3);
+          gfx.text(3, 36, "Hold=select", 3);
+        }
+    }
+    drawStart() { this.draw(); }
   }
 
   class NeedSpeed extends Game {
@@ -1878,6 +2045,8 @@
         new Blackjack(),
         new TinyGolf(),
         new TowerStacker(),
+        new StopwatchSim(),
+        new CountdownSim(),
         new OptionsGame(),
         new Credits()
       ];
