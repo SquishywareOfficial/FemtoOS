@@ -43,6 +43,7 @@ class Game {
         uint32_t height;
 
         void endGame();
+        void requestExitToMenu();
 
     public:
         Game(const char* title, uint32_t width, uint32_t height);
@@ -56,6 +57,7 @@ class Game {
         void clearExitRequest();
         GamePhase phase() const;
         const char* gameTitle() const;
+        virtual bool hasCustomOverlay() const;
 
     protected:
         virtual void onGameReset();
@@ -70,6 +72,7 @@ class Game {
         GamePhase phase_ = GamePhase::Start;
         SingleButton button_;
         uint32_t lastUpdateMs_ = 0;
+        uint32_t phaseStartedAtMs_ = 0;
         bool gameOver_ = false;
         bool exitToMenuRequested_ = false;
 };

@@ -1,5 +1,9 @@
 #include "Game.h"
 
+namespace {
+constexpr uint16_t END_INPUT_LOCKOUT_MS = 500;
+}
+
 SingleButton::SingleButton(uint16_t debounceMs, uint16_t longPressMs)
     : debounceMs_(debounceMs), longPressMs_(longPressMs) {}
 
@@ -52,6 +56,7 @@ void Game::begin(uint32_t nowMs, bool buttonDown) {
     button_.reset(buttonDown, nowMs);
     phase_ = GamePhase::Start;
     lastUpdateMs_ = nowMs;
+    phaseStartedAtMs_ = nowMs;
     gameOver_ = false;
     exitToMenuRequested_ = false;
 }
@@ -71,12 +76,17 @@ void Game::tick(uint32_t nowMs, bool buttonDown) {
             updateRunning(deltaMs, input);
             if (gameOver_) {
                 phase_ = GamePhase::End;
+                phaseStartedAtMs_ = nowMs;
             }
             break;
         case GamePhase::End:
+            if ((nowMs - phaseStartedAtMs_) < END_INPUT_LOCKOUT_MS) {
+                break;
+            }
             if (input.longPress) {
                 exitToMenuRequested_ = true;
                 phase_ = GamePhase::Start;
+                phaseStartedAtMs_ = nowMs;
             } else if (input.click) {
                 startRunning();
             }
@@ -114,8 +124,16 @@ const char* Game::gameTitle() const {
     return title;
 }
 
+bool Game::hasCustomOverlay() const {
+    return false;
+}
+
 void Game::endGame() {
     gameOver_ = true;
+}
+
+void Game::requestExitToMenu() {
+    exitToMenuRequested_ = true;
 }
 
 void Game::onGameReset() {}
@@ -132,4 +150,5 @@ void Game::startRunning() {
     gameOver_ = false;
     onGameReset();
     phase_ = GamePhase::Running;
+    phaseStartedAtMs_ = lastUpdateMs_;
 }

@@ -1,12 +1,23 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 
+#include "BlackjackGame.h"
 #include "BreakoutGame.h"
+#include "CreditsGame.h"
 #include "DefenderMiniGame.h"
+#include "FishingFlickGame.h"
 #include "Game.h"
 #include "HeliCaveGame.h"
+#include "InitialsGame.h"
 #include "JumpGame.h"
+#include "MazeRunnerGame.h"
+#include "MiniLanderGame.h"
 #include "MicroRacerGame.h"
+#include "NeedSpeedGame.h"
+#include "NoonShooterGame.h"
+#include "PipeManiaGame.h"
+#include "TinyGolfGame.h"
+#include "TowerStackerGame.h"
 
 class U8G2_SSD1306_72X40_NONAME_F_HW_I2C : public U8G2 {
   public:
@@ -36,8 +47,37 @@ MicroRacerGame microRacerGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 DefenderMiniGame defenderMiniGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 JumpGame jumpGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 HeliCaveGame heliCaveGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+MiniLanderGame miniLanderGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+NeedSpeedGame needSpeedGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+NoonShooterGame noonShooterGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+FishingFlickGame fishingFlickGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+MazeRunnerGame mazeRunnerGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+MazeRunnerGame mazeCollectorGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT, true);
+PipeManiaGame pipeManiaGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+BlackjackGame blackjackGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+TinyGolfGame tinyGolfGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+TowerStackerGame towerStackerGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+InitialsGame initialsGame(GAME_WIDTH, GAME_HEIGHT);
+CreditsGame creditsGame(GAME_WIDTH, GAME_HEIGHT);
 
-Game* games[] = {&breakoutGame, &microRacerGame, &defenderMiniGame, &jumpGame, &heliCaveGame};
+Game* games[] = {
+    //&breakoutGame,
+    //&microRacerGame,
+    //&defenderMiniGame,
+    //&jumpGame,
+    //&heliCaveGame,
+    &miniLanderGame,
+    &needSpeedGame,
+    &noonShooterGame,
+    &fishingFlickGame,
+    &mazeRunnerGame,
+    &mazeCollectorGame,
+    &pipeManiaGame,
+    &blackjackGame,
+    &tinyGolfGame,
+    &towerStackerGame,
+    &initialsGame,
+    &creditsGame};
 constexpr uint8_t GAME_COUNT = sizeof(games) / sizeof(games[0]);
 
 SingleButton menuButton;
@@ -50,7 +90,13 @@ void drawMenu() {
   u8g2.drawFrame(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
   u8g2.setFont(u8g2_font_5x8_tr);
   u8g2.drawStr(3, 9, "Select game");
-  u8g2.drawStr(3, 19, games[menuIndex]->gameTitle());
+  if (strlen(games[menuIndex]->gameTitle()) > 12) {
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.drawStr(3, 19, games[menuIndex]->gameTitle());
+    u8g2.setFont(u8g2_font_5x8_tr);
+  } else {
+    u8g2.drawStr(3, 19, games[menuIndex]->gameTitle());
+  }
   if (menuLaunchArmed) {
     u8g2.drawStr(3, 29, "Release");
     u8g2.drawStr(3, 38, "to start");
@@ -65,10 +111,10 @@ void drawGameOverlay(Game& game) {
   u8g2.setFont(u8g2_font_5x8_tr);
   if (game.phase() == GamePhase::Start) {
     u8g2.drawStr(3, 10, game.gameTitle());
-    u8g2.drawStr(3, 24, "Click to start");
+    u8g2.drawStr(3, 24, "Tap start");
   } else if (game.phase() == GamePhase::End) {
     u8g2.drawStr(3, 10, "Game Over");
-    u8g2.drawStr(3, 24, "Click restart");
+    u8g2.drawStr(3, 24, "Tap retry");
     u8g2.drawStr(3, 36, "Hold menu");
   }
 }
@@ -107,7 +153,7 @@ void loop(void) {
   } else {
     activeGame->tick(nowMs, buttonDown);
     activeGame->render(u8g2);
-    if (activeGame->phase() != GamePhase::Running) {
+    if (activeGame->phase() != GamePhase::Running && !activeGame->hasCustomOverlay()) {
       drawGameOverlay(*activeGame);
     }
     if (activeGame->shouldExitToMenu()) {
