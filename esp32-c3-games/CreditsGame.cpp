@@ -5,7 +5,7 @@
 #include "Version.h"
 
 namespace {
-constexpr uint8_t CREDIT_PAGE_COUNT = 18;
+constexpr uint8_t CREDIT_PAGE_COUNT = 21;
 
 struct CreditPage {
   const char* game;
@@ -29,6 +29,9 @@ const CreditPage CREDIT_PAGES[CREDIT_PAGE_COUNT] = {
     {"Maze Collector", "thedarkfalcon", nullptr},
     {"Pipe Mania", "thedarkfalcon", nullptr},
     {"Blackjack", "thedarkfalcon", nullptr},
+    {"Counter", "thedarkfalcon", nullptr},
+    {"Stopwatch", "thedarkfalcon", nullptr},
+    {"Countdown", "thedarkfalcon", nullptr},
     {"Options", "thedarkfalcon", nullptr},
     {"Credits", "thedarkfalcon", nullptr},
     {"Repo", "git.new/esp32games", nullptr},
@@ -94,11 +97,9 @@ void CreditsGame::drawRunning(U8G2& u8g2) {
   } else if (credit.author1[0] != 't') {
     u8g2.drawStr(3, 19, "Developer");
     drawGithubHandle(u8g2, 3, 28, credit.author1);
-    u8g2.drawStr(3, 38, "Tap next");
   } else {
     u8g2.drawStr(3, 19, "Developer");
     drawGithubHandle(u8g2, 3, 28, credit.author1);
-    u8g2.drawStr(54, 38, "Tap");
   }
 }
 
@@ -115,7 +116,7 @@ void CreditsGame::drawEnd(U8G2& u8g2) {
   u8g2.drawFrame(0, 0, width + 2, height);
   u8g2.setFont(u8g2_font_5x8_tr);
   u8g2.drawStr(3, 12, "Thanks");
-  u8g2.drawStr(3, 26, "Tap retry");
+  u8g2.drawStr(3, 26, "Tap replay");
   u8g2.setFont(u8g2_font_4x6_tr);
   u8g2.drawStr(3, 32, BuildInfo::BUILD_TEXT);
   u8g2.drawStr(3, 38, "Hold menu");

@@ -21,6 +21,7 @@
 #include "TowerStackerGame.h"
 #include "StopwatchGame.h"
 #include "CountdownGame.h"
+#include "CounterGame.h"
 
 class U8G2_SSD1306_72X40_NONAME_F_HW_I2C : public U8G2 {
   public:
@@ -64,6 +65,7 @@ InitialsGame initialsGame(GAME_WIDTH, GAME_HEIGHT);
 CreditsGame creditsGame(GAME_WIDTH, GAME_HEIGHT);
 StopwatchGame stopwatchGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 CountdownGame countdownGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
+CounterGame counterGame(GAME_WIDTH, GAME_HEIGHT, GAME_LEFT);
 
 Game* games[] = {
     &breakoutGame,
@@ -83,6 +85,7 @@ Game* games[] = {
   &towerStackerGame,
   &stopwatchGame,
   &countdownGame,
+  &counterGame,
   &initialsGame,
   &creditsGame
   };

@@ -3,7 +3,7 @@
   const H = 40;
   const LONG_MS = 700;
   const END_LOCK_MS = 500;
-  const BUILD_TEXT = "v1.1 b17";
+  const BUILD_TEXT = "v1.1 b18";
 
   const canvas = document.getElementById("oled");
   const ctx = canvas.getContext("2d");
@@ -492,6 +492,30 @@
       // tap hint at top, hold hint at bottom
       gfx.text(3, 9, this.running ? "Tap=pause" : "Tap=start", 4);
       // right-align hold hint
+      const hold = "Hold=Reset";
+      const holdX = Math.max(3, W - (textWidth(hold) + 2));
+      gfx.text(holdX, 36, hold, 4);
+    }
+    drawStart() { this.draw(); }
+  }
+
+  class CounterSim extends Game {
+    constructor() {
+      super("Counter");
+      this.count = 0;
+    }
+    reset() {
+      this.count = 0;
+    }
+    update(dt, input, now) {
+      if (input.click) this.count++;
+      if (input.longPress) this.count = 0;
+    }
+    draw() {
+      gfx.rect(0, 0, W, H);
+      const s = `${this.count}`;
+      gfx.center(24, s);
+      gfx.text(3, 9, "Tap=+1", 4);
       const hold = "Hold=Reset";
       const holdX = Math.max(3, W - (textWidth(hold) + 2));
       gfx.text(holdX, 36, hold, 4);
@@ -1991,7 +2015,7 @@
   class Credits extends Game {
     constructor() {
       super("Credits");
-      this.pages = ["atomic14: Breakout", "atomic14: Micro Racer", "atomic14: Defender Mini", "atomic14: Jump Run", "atomic14: Heli Cave", "thedarkfalcon: Tower", "thedarkfalcon: Golf", "thedarkfalcon: Lander", "thedarkfalcon: Need Speed", "thedarkfalcon: Noon Shooter", "thedarkfalcon: Fishing Flick", "thedarkfalcon: Maze Runner", "thedarkfalcon: Maze Collector", "thedarkfalcon: Pipe Mania", "thedarkfalcon: Blackjack", "thedarkfalcon: Options", "thedarkfalcon: Credits"];
+      this.pages = ["atomic14: Breakout", "atomic14: Micro Racer", "atomic14: Defender Mini", "atomic14: Jump Run", "atomic14: Heli Cave", "thedarkfalcon: Tower", "thedarkfalcon: Golf", "thedarkfalcon: Lander", "thedarkfalcon: Need Speed", "thedarkfalcon: Noon Shooter", "thedarkfalcon: Fishing Flick", "thedarkfalcon: Maze Runner", "thedarkfalcon: Maze Collector", "thedarkfalcon: Pipe Mania", "thedarkfalcon: Blackjack", "thedarkfalcon: Counter", "thedarkfalcon: Stopwatch", "thedarkfalcon: Countdown", "thedarkfalcon: Options", "thedarkfalcon: Credits"];
     }
     reset() {
       this.page = 0;
@@ -2020,7 +2044,7 @@
     drawEnd() {
       gfx.rect(0, 0, W, H);
       gfx.text(3, 12, "Thanks", 7);
-      gfx.text(3, 26, "Tap retry", 7);
+      gfx.text(3, 26, "Tap replay", 7);
       gfx.text(3, 32, BUILD_TEXT);
       gfx.text(3, 38, "Hold menu");
     }
@@ -2047,6 +2071,7 @@
         new TowerStacker(),
         new StopwatchSim(),
         new CountdownSim(),
+        new CounterSim(),
         new OptionsGame(),
         new Credits()
       ];

@@ -10,6 +10,10 @@ To create a new build with an incremented build number, run:
 
 If compiling manually with `arduino-cli compile`, bump `esp32-c3-games/Version.h` first and add a note here.
 
+## v1.1 b18
+
+- Added `Counter` utility: a simple counting app (tap increments, hold resets). Currently the only change in this build; more updates planned for future builds.
+
 ## v1.1 b17
 
 - Added and refined two timer utilities: `Stopwatch` and `Countdown` (selection UI, top/bottom hints, hold/tap behaviors).
