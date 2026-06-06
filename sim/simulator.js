@@ -3,7 +3,7 @@
   const H = 40;
   const LONG_MS = 700;
   const END_LOCK_MS = 500;
-  const BUILD_TEXT = "v1.1 b14";
+  const BUILD_TEXT = "v1.1 b16";
 
   const canvas = document.getElementById("oled");
   const ctx = canvas.getContext("2d");

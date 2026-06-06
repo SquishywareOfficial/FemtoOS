@@ -10,6 +10,22 @@ To create a new build with an incremented build number, run:
 
 If compiling manually with `arduino-cli compile`, bump `esp32-c3-games/Version.h` first and add a note here.
 
+## v1.1 b16
+
+- Fixed Tower Stacker's near-perfect placement forgiveness so it snaps cleanly onto the supported block instead of drawing unsupported overhang.
+
+## v1.1 b15
+
+- Made Pipe Mania much more forgiving by increasing build time before goo starts, slowing early goo flow, and reducing hold-to-place delay.
+- Added persistent Mini Lander best-level tracking and a best-level intro page.
+- Added splash/top-score/prompt pages and persistent scores to Micro Racer, Heli Cave, Breakout, Defender Mini, and Jump Run.
+- Added Micro Racer levels that increase speed every 50 cars passed.
+- Added Heli Cave survival-time scoring and a stronger gradual speed ramp.
+- Added Breakout level progression and cumulative brick-broken scoring.
+- Added Defender Mini health so enemies passing in any lane damage the player.
+- Reworked Tower Stacker into 10-block tower stages with wider resets, faster later stages, and gentler width loss.
+- Updated Credits to show atomic14 as creator and thedarkfalcon as modifier for the original games, plus `git.new/esp32games`.
+
 ## v1.1 b14
 
 - Fixed intro page rotation so every game starts on its splash screen when selected, then advances to best score, then `Press to Start`.
