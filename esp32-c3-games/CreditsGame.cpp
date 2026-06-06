@@ -5,7 +5,7 @@
 #include "Version.h"
 
 namespace {
-constexpr uint8_t CREDIT_PAGE_COUNT = 21;
+constexpr uint8_t CREDIT_PAGE_COUNT = 22;
 
 struct CreditPage {
   const char* game;
@@ -30,6 +30,7 @@ const CreditPage CREDIT_PAGES[CREDIT_PAGE_COUNT] = {
     {"Pipe Mania", "thedarkfalcon", nullptr},
     {"Blackjack", "thedarkfalcon", nullptr},
     {"Counter", "thedarkfalcon", nullptr},
+    {"Mouse Emulator", "thedarkfalcon", nullptr},
     {"Stopwatch", "thedarkfalcon", nullptr},
     {"Countdown", "thedarkfalcon", nullptr},
     {"Options", "thedarkfalcon", nullptr},

@@ -10,6 +10,23 @@ To create a new build with an incremented build number, run:
 
 If compiling manually with `arduino-cli compile`, bump `esp32-c3-games/Version.h` first and add a note here.
 
+## v1.1 b22
+
+- Moved `Mouse Emulator` vertical wiggle tuning values into top-level constants and increased the bounded vertical wander limit to 20 pixels.
+
+## v1.1 b21
+
+- Added bounded vertical jitter to `Mouse Emulator` movement so the cursor wiggles more like the original S3 mouse script while keeping the C3 update loop non-blocking.
+
+## v1.1 b20
+
+- Renamed `Mouse Jiggler` to `Mouse Emulator` in the device menu, splash screen, credits, and browser simulator.
+
+## v1.1 b19
+
+- Reworked `Mouse Jiggler` to use a small local NimBLE HID mouse implementation instead of the older `ESP32 BLE Mouse` wrapper, reducing BLE task overhead on the ESP32-C3.
+- Reset Mouse Jiggler movement state whenever the game launches so stale movement phases cannot carry between runs.
+
 ## v1.1 b18
 
 - Added `Counter` utility: a simple counting app (tap increments, hold resets). Currently the only change in this build; more updates planned for future builds.

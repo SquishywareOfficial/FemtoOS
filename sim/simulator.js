@@ -523,6 +523,31 @@
     drawStart() { this.draw(); }
   }
 
+  class MouseJigglerSim extends Game {
+    constructor() {
+      super("Mouse Emulator");
+      this.countdown = 0;
+      this.interval = 10000;
+      this.last = performance.now();
+      this.active = true;
+    }
+    reset() {
+      this.last = performance.now();
+      this.active = true;
+    }
+    update(dt, input, now) {
+      if (input.click) this.active = !this.active;
+      if (input.longPress) app.toMenu(now);
+    }
+    draw() {
+      gfx.rect(0, 0, W, H);
+      gfx.text(3, 10, "Mouse Emulator", 7);
+      gfx.text(3, 24, this.active ? "ACTIVE" : "PAUSED", 4);
+      gfx.text(3, 36, "Tap toggle Hold menu");
+    }
+    drawStart() { this.draw(); }
+  }
+
   class CountdownSim extends Game {
     constructor() {
       super("Countdown");
@@ -2072,6 +2097,7 @@
         new StopwatchSim(),
         new CountdownSim(),
         new CounterSim(),
+        new MouseJigglerSim(),
         new OptionsGame(),
         new Credits()
       ];
