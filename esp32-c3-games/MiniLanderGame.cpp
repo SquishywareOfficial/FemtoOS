@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 
+#include "PlayerProfile.h"
+
 namespace {
 constexpr int HUD_H = 8;
 constexpr int GROUND_Y = 36;
@@ -116,6 +118,20 @@ void MiniLanderGame::drawRunning(U8G2& u8g2) {
 
 void MiniLanderGame::drawStart(U8G2& u8g2) {
   u8g2.drawFrame(0, 0, width + 2, height);
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+    return;
+  }
+  if (showStartScorePage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 10, "Mission");
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.drawStr(3, 24, "Land softly");
+    u8g2.drawStr(3, 34, "Watch V/Fuel");
+    return;
+  }
   u8g2.drawCircle(17, 20, 12);
   u8g2.drawCircle(12, 16, 2);
   u8g2.drawCircle(20, 23, 3);
@@ -126,7 +142,7 @@ void MiniLanderGame::drawStart(U8G2& u8g2) {
   u8g2.drawPixel(61, 22);
   u8g2.drawPixel(49, 30);
   u8g2.setFont(u8g2_font_5x8_tr);
-  u8g2.drawStr(3, 36, "Tap start");
+  u8g2.drawStr(3, 36, gameTitle());
 }
 
 void MiniLanderGame::drawEnd(U8G2& u8g2) {

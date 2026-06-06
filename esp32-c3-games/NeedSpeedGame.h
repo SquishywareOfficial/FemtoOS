@@ -37,6 +37,9 @@ class NeedSpeedGame : public Game {
     void shift();
     void updateShiftLed(uint32_t nowMs);
     void setShiftLed(bool on);
+    void loadBestRun();
+    void saveBestRun();
+    void recordClearedLevel(uint8_t clearedLevel);
     float levelFinishSpeed() const;
     uint16_t levelTargetMs() const;
     float levelRpmMultiplier() const;
@@ -56,8 +59,12 @@ class NeedSpeedGame : public Game {
     uint16_t levelCompleteTimerMs_ = 0;
     uint8_t level_ = 1;
     uint8_t gear_ = 1;
+    uint8_t bestLevel_ = 0;
+    uint16_t bestInitials_ = 0;
+    uint32_t bestRaceMs_ = 0;
     float rpm_ = 900.0f;
     float speed_ = 0.0f;
     bool disqualified_ = false;
     bool failed_ = false;
+    bool bestLoaded_ = false;
 };

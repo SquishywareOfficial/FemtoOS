@@ -10,6 +10,18 @@ To create a new build with an incremented build number, run:
 
 If compiling manually with `arduino-cli compile`, bump `esp32-c3-games/Version.h` first and add a note here.
 
+## v1.1 b14
+
+- Fixed intro page rotation so every game starts on its splash screen when selected, then advances to best score, then `Press to Start`.
+- Removed the old uptime-based intro page helper to prevent future screens from starting mid-cycle.
+
+## v1.1 b13
+
+- Changed game intro rotation to three standalone pages: splash art/title, top score/best info, then `Press to Start`.
+- Removed start prompts from splash and high-score pages so they no longer clutter the art or score layout.
+- Added persistent Need Speed best-run tracking with best level cleared, run time, and player initials.
+- Updated the browser simulator to match the new intro flow and Need Speed best-run behavior.
+
 ## v1.1 b12
 
 - Fixed Options initials save and Credits long-hold behavior so both return directly to the main menu.

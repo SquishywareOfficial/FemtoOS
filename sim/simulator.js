@@ -3,7 +3,7 @@
   const H = 40;
   const LONG_MS = 700;
   const END_LOCK_MS = 500;
-  const BUILD_TEXT = "v1.1 b12";
+  const BUILD_TEXT = "v1.1 b14";
 
   const canvas = document.getElementById("oled");
   const ctx = canvas.getContext("2d");
@@ -20,6 +20,13 @@
   const initials = () => loadText("profile.initials", "JF").slice(0, 2).padEnd(2, "A").toUpperCase();
   const dottedInitials = () => `${initials()[0]}.${initials()[1]}`;
   const saveInitials = (value) => save("profile.initials", value.slice(0, 2).toUpperCase());
+  let introAnchorMs = 0;
+  const introPage = () => Math.floor((performance.now() - introAnchorMs) / 2000) % 3;
+  const drawPromptPage = () => {
+    gfx.rect(0, 0, W, H);
+    gfx.text(20, 16, "Press", 7);
+    gfx.text(13, 29, "to Start", 7);
+  };
 
   const FONT = {
     "A": ["010", "101", "111", "101", "101"],
@@ -206,16 +213,27 @@
       }
     }
     render() {
-      if (this.phase === "start") this.drawStart();
+      if (this.phase === "start") {
+        introAnchorMs = this.phaseAt;
+        this.drawStart();
+      }
       if (this.phase === "running") this.draw();
       if (this.phase === "end") this.drawEnd();
     }
     reset() {}
     update() {}
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
-      gfx.text(3, 10, this.title, 7);
-      gfx.text(3, 24, "Tap start");
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Top Score", 7);
+        gfx.text(3, 24, "--");
+      } else {
+        gfx.text(3, 10, this.title, 7);
+      }
     }
     drawEnd() {
       gfx.rect(0, 0, W, H);
@@ -283,6 +301,19 @@
       this.layers.slice(first).forEach((l, i) => gfx.box(1 + l.x, 37 - i * 3, l.w, 3));
       const topY = 37 - (this.layers.length - first) * 3;
       gfx.rect(1 + this.movingX, topY, this.layers.at(-1).w, 3);
+    }
+    drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
+      gfx.rect(0, 0, W, H);
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Top Score", 7);
+        gfx.text(3, 24, this.best ? `${dottedInitials()} ${this.best}` : "--");
+      } else {
+        gfx.text(3, 10, this.title, 7);
+      }
     }
     drawEnd() {
       gfx.rect(0, 0, W, H);
@@ -378,13 +409,23 @@
       }
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Mission", 7);
+        gfx.text(3, 24, "Land softly");
+        gfx.text(3, 34, "Watch V/Fuel");
+        return;
+      }
       gfx.circle(17, 20, 12);
       gfx.circle(12, 16, 2);
       gfx.circle(20, 23, 3);
       gfx.tri(52, 14, 57, 11, 55, 18);
       gfx.line(42, 9, 50, 13);
-      gfx.text(3, 36, "Tap to burn", 7);
+      gfx.text(3, 36, this.title, 7);
     }
     draw() {
       if (this.state === "brief") {
@@ -423,6 +464,9 @@
   class NeedSpeed extends Game {
     constructor() {
       super("Need Speed");
+      this.bestLevel = loadNum("needspeed.level");
+      this.bestTime = loadNum("needspeed.time");
+      this.bestInit = loadText("needspeed.init", dottedInitials());
     }
     reset() {
       this.level = 1;
@@ -501,6 +545,7 @@
       setLed(this.gear < 6 && (this.rpm >= 6500 ? Math.floor(now / 120) % 2 === 0 : this.rpm >= 5600));
       if (this.speed >= this.finishSpeed()) {
         setLed(false);
+        this.recordCleared(this.level);
         if (this.level >= 5) this.finish(now);
         else {
           this.state = "clear";
@@ -529,11 +574,34 @@
       this.rpm = Math.max(900, this.rpm * 0.58);
       setLed(false);
     }
+    recordCleared(level) {
+      if (level > this.bestLevel || (level === this.bestLevel && (!this.bestTime || this.totalTime < this.bestTime))) {
+        this.bestLevel = level;
+        this.bestTime = this.totalTime;
+        this.bestInit = dottedInitials();
+        save("needspeed.level", this.bestLevel);
+        save("needspeed.time", Math.round(this.bestTime));
+        save("needspeed.init", this.bestInit);
+      }
+    }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Best Run", 7);
+        if (this.bestLevel) {
+          gfx.text(3, 23, `${this.bestInit} L${this.bestLevel}`);
+          gfx.text(3, 32, `${Math.floor(this.bestTime / 1000)}.${Math.floor(this.bestTime / 100) % 10}s`);
+        } else {
+          gfx.text(3, 23, "--");
+        }
+        return;
+      }
       this.drawCars();
       gfx.text(3, 9, this.title, 7);
-      gfx.text(3, 38, "Tap start");
     }
     drawCars() {
       gfx.line(8, 25, 26, 25);
@@ -718,13 +786,26 @@
       gfx.text(2, 38, `L${this.level} enemy ${this.enemyDelay()}`);
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Top Duel", 7);
+        if (this.bestLevel) {
+          gfx.text(3, 23, `${dottedInitials()} L${this.bestLevel}`);
+          gfx.text(3, 32, this.bestReact ? `${Math.round(this.bestReact)}ms` : "--");
+        } else {
+          gfx.text(3, 23, "--");
+        }
+        return;
+      }
       gfx.circle(56, 8, 5);
       gfx.line(4, 31, 67, 31);
       this.drawPerson(18, 28, true);
       this.drawPerson(46, 28, false);
       gfx.text(3, 10, this.title, 7);
-      gfx.text(3, 38, "Tap start");
     }
     drawEnd() {
       gfx.rect(0, 0, W, H);
@@ -848,12 +929,20 @@
       }
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Top Fish", 7);
+        gfx.text(3, 24, this.best ? `${dottedInitials()} ${this.best}g` : "--");
+        return;
+      }
       this.water();
       gfx.line(12, 9, 24, 25);
       gfx.line(24, 25, 31, 24);
       gfx.text(3, 10, this.title, 7);
-      gfx.text(3, 38, "Tap start");
     }
     draw() {
       gfx.rect(1, 0, 70, 40);
@@ -984,10 +1073,18 @@
       }
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
-      gfx.text(3, 10, this.title, 7);
-      gfx.text(3, 22, "Tap start");
-      gfx.text(3, 34, "Low score wins");
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Top Score", 7);
+        gfx.text(3, 24, this.best ? `${dottedInitials()} ${this.best}` : "--");
+      } else {
+        gfx.text(3, 10, this.title, 7);
+        gfx.text(3, 34, "Low score wins");
+      }
     }
     draw() {
       const h = this.holes()[this.hole % this.holes().length];
@@ -1168,11 +1265,19 @@
       this.walls[next] &= ~(1 << this.reverse(dir));
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
-      gfx.text(3, 10, this.title, 7);
-      gfx.text(3, 21, this.collector ? "Get keys" : "Tap choose");
-      gfx.text(3, 29, "Hold run");
-      gfx.text(3, 38, "Tap start");
+      if (introPage() === 1) {
+        gfx.text(3, 10, "Top Score", 7);
+        gfx.text(3, 24, this.best ? `${dottedInitials()} L${this.best}` : "--");
+      } else {
+        gfx.text(3, 10, this.title, 7);
+        gfx.text(3, 21, this.collector ? "Get keys" : "Tap choose");
+        gfx.text(3, 29, "Hold run");
+      }
     }
     draw() {
       gfx.rect(0, 0, W, H);
@@ -1406,14 +1511,22 @@
       }
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
-      gfx.text(3, 9, this.title, 7);
-      this.drawPipe(8, 16, 1, true);
-      this.drawPipe(14, 16, 4, true);
-      this.drawPipe(14, 22, 2, true);
-      gfx.text(30, 20, "Tap piece");
-      gfx.text(30, 29, "Hold place");
-      gfx.text(3, 38, `Best ${this.best}`);
+      if (introPage() === 1) {
+        gfx.text(3, 9, "Top Score", 7);
+        gfx.text(3, 24, this.best ? `${dottedInitials()} ${this.best}` : "--");
+      } else {
+        gfx.text(3, 9, this.title, 7);
+        this.drawPipe(8, 16, 1, true);
+        this.drawPipe(14, 16, 4, true);
+        this.drawPipe(14, 22, 2, true);
+        gfx.text(30, 20, "Tap piece");
+        gfx.text(30, 29, "Hold place");
+      }
     }
     draw() {
       gfx.rect(0, 0, W, H);
@@ -1610,14 +1723,22 @@
       if (!hide) gfx.text(x + 48, y, this.value(cards));
     }
     drawStart() {
+      if (introPage() === 2) {
+        drawPromptPage();
+        return;
+      }
       gfx.rect(0, 0, W, H);
-      gfx.rect(8, 16, 10, 14);
-      gfx.rect(21, 14, 10, 14);
-      gfx.disc(50, 24, 5);
-      gfx.circle(58, 25, 5);
-      gfx.text(3, 9, this.title, 7);
-      gfx.text(3, 29, "2 deck shoe");
-      gfx.text(3, 38, "Tap start");
+      if (introPage() === 1) {
+        gfx.text(3, 9, "Top Bank", 7);
+        gfx.text(3, 24, this.best > 100 ? `${loadText("blackjack.best.init", dottedInitials())} $${this.best}` : "--");
+      } else {
+        gfx.rect(8, 16, 10, 14);
+        gfx.rect(21, 14, 10, 14);
+        gfx.disc(50, 24, 5);
+        gfx.circle(58, 25, 5);
+        gfx.text(3, 9, this.title, 7);
+        gfx.text(3, 29, "2 deck shoe");
+      }
     }
     draw() {
       gfx.rect(1, 0, 70, 40);

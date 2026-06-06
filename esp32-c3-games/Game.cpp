@@ -2,6 +2,8 @@
 
 namespace {
 constexpr uint16_t END_INPUT_LOCKOUT_MS = 500;
+constexpr uint16_t INTRO_PAGE_MS = 2000;
+constexpr uint8_t INTRO_PAGE_COUNT = 3;
 }
 
 SingleButton::SingleButton(uint16_t debounceMs, uint16_t longPressMs)
@@ -122,6 +124,18 @@ GamePhase Game::phase() const {
 
 const char* Game::gameTitle() const {
     return title;
+}
+
+uint8_t Game::startIntroPage() const {
+    return static_cast<uint8_t>(((lastUpdateMs_ - phaseStartedAtMs_) / INTRO_PAGE_MS) % INTRO_PAGE_COUNT);
+}
+
+bool Game::showStartScorePage() const {
+    return startIntroPage() == 1;
+}
+
+bool Game::showStartPromptPage() const {
+    return startIntroPage() == 2;
 }
 
 bool Game::hasCustomOverlay() const {

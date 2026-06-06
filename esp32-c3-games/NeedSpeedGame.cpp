@@ -1,7 +1,10 @@
 #include "NeedSpeedGame.h"
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include <U8g2lib.h>
+
+#include "PlayerProfile.h"
 
 namespace {
 constexpr uint8_t SHIFT_LED_PIN = 8;
@@ -15,6 +18,7 @@ constexpr float PERFECT_HIGH_RPM = 6500.0f;
 constexpr float LATE_RPM = 6500.0f;
 constexpr float RPM_DROP = 0.58f;
 constexpr uint8_t MAX_LEVEL = 5;
+Preferences speedPrefs;
 
 const float RPM_CLIMB[MAX_GEAR] = {3300.0f, 2700.0f, 2200.0f, 1750.0f, 1400.0f, 1100.0f};
 const float SPEED_GAIN[MAX_GEAR] = {24.0f, 22.0f, 19.0f, 16.0f, 13.0f, 10.0f};
@@ -30,6 +34,7 @@ bool NeedSpeedGame::hasCustomOverlay() const {
 void NeedSpeedGame::onGameReset() {
   pinMode(SHIFT_LED_PIN, OUTPUT);
   setShiftLed(false);
+  loadBestRun();
   level_ = 1;
   totalRaceMs_ = 0;
   startLevel();
@@ -115,6 +120,7 @@ void NeedSpeedGame::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
 
   if (speed_ >= levelFinishSpeed()) {
     setShiftLed(false);
+    recordClearedLevel(level_);
     if (level_ >= MAX_LEVEL) {
       endGame();
     } else {
@@ -180,12 +186,38 @@ void NeedSpeedGame::drawRunning(U8G2& u8g2) {
 }
 
 void NeedSpeedGame::drawStart(U8G2& u8g2) {
+  loadBestRun();
   u8g2.drawFrame(0, 0, width + 2, height);
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+    return;
+  }
+  if (showStartScorePage()) {
+    char initials[4];
+    PlayerProfile::unpackDottedInitials(bestInitials_, initials);
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(3, 10, "Best Run");
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.setCursor(3, 23);
+    if (bestLevel_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" L");
+      u8g2.print(bestLevel_);
+      u8g2.setCursor(3, 32);
+      u8g2.print(bestRaceMs_ / 1000);
+      u8g2.print(".");
+      u8g2.print((bestRaceMs_ / 100) % 10);
+      u8g2.print("s");
+    }
+    return;
+  }
   drawCarSplash(u8g2);
   u8g2.setFont(u8g2_font_5x8_tr);
   u8g2.drawStr(3, 9, gameTitle());
-  u8g2.setFont(u8g2_font_4x6_tr);
-  u8g2.drawStr(3, 38, "Tap start");
 }
 
 void NeedSpeedGame::drawEnd(U8G2& u8g2) {
@@ -260,6 +292,37 @@ void NeedSpeedGame::updateShiftLed(uint32_t nowMs) {
 
 void NeedSpeedGame::setShiftLed(bool on) {
   digitalWrite(SHIFT_LED_PIN, SHIFT_LED_ACTIVE_LOW ? !on : on);
+}
+
+void NeedSpeedGame::loadBestRun() {
+  if (bestLoaded_) {
+    return;
+  }
+  speedPrefs.begin("needspeed", true);
+  bestLevel_ = speedPrefs.getUChar("level", 0);
+  bestRaceMs_ = speedPrefs.getUInt("time", 0);
+  bestInitials_ = speedPrefs.getUShort("init", PlayerProfile::defaultInitials());
+  speedPrefs.end();
+  bestLoaded_ = true;
+}
+
+void NeedSpeedGame::saveBestRun() {
+  bestInitials_ = PlayerProfile::loadInitials();
+  speedPrefs.begin("needspeed", false);
+  speedPrefs.putUChar("level", bestLevel_);
+  speedPrefs.putUInt("time", bestRaceMs_);
+  speedPrefs.putUShort("init", bestInitials_);
+  speedPrefs.end();
+}
+
+void NeedSpeedGame::recordClearedLevel(uint8_t clearedLevel) {
+  loadBestRun();
+  if (clearedLevel > bestLevel_ ||
+      (clearedLevel == bestLevel_ && (bestRaceMs_ == 0 || totalRaceMs_ < bestRaceMs_))) {
+    bestLevel_ = clearedLevel;
+    bestRaceMs_ = totalRaceMs_;
+    saveBestRun();
+  }
 }
 
 float NeedSpeedGame::levelFinishSpeed() const {

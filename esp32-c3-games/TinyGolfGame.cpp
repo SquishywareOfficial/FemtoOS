@@ -160,22 +160,29 @@ void TinyGolfGame::drawRunning(U8G2& u8g2) {
 }
 
 void TinyGolfGame::drawStart(U8G2& u8g2) {
+  loadBestScore();
   u8g2.drawFrame(0, 0, width + 2, height);
-  if (bestScore_ > 0 && PlayerProfile::showScorePage()) {
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+  } else if (showStartScorePage()) {
     char initials[4];
     PlayerProfile::unpackDottedInitials(bestInitials_, initials);
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, "Top Score");
     u8g2.setFont(u8g2_font_4x6_tr);
     u8g2.setCursor(3, 24);
-    u8g2.print(initials);
-    u8g2.print(" ");
-    u8g2.print(bestScore_);
-    u8g2.drawStr(3, 38, "Tap start");
+    if (bestScore_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" ");
+      u8g2.print(bestScore_);
+    }
   } else {
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, gameTitle());
-    u8g2.drawStr(3, 22, "Tap start");
     u8g2.drawStr(3, 34, "Low score wins");
   }
 }

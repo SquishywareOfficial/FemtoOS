@@ -56,7 +56,4 @@ char normalizeInitial(char value) {
   return 'A';
 }
 
-bool showScorePage() {
-  return ((millis() / 2000) % 2) == 1;
-}
 }

@@ -9,5 +9,4 @@ void saveInitials(char first, char second);
 void unpackInitials(uint16_t packed, char out[3]);
 void unpackDottedInitials(uint16_t packed, char out[4]);
 char normalizeInitial(char value);
-bool showScorePage();
 }

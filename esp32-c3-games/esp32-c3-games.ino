@@ -16,6 +16,7 @@
 #include "NeedSpeedGame.h"
 #include "NoonShooterGame.h"
 #include "PipeManiaGame.h"
+#include "PlayerProfile.h"
 #include "TinyGolfGame.h"
 #include "TowerStackerGame.h"
 
@@ -61,11 +62,6 @@ InitialsGame initialsGame(GAME_WIDTH, GAME_HEIGHT);
 CreditsGame creditsGame(GAME_WIDTH, GAME_HEIGHT);
 
 Game* games[] = {
-    //&breakoutGame,
-    //&microRacerGame,
-    //&defenderMiniGame,
-    //&jumpGame,
-    //&heliCaveGame,
     &miniLanderGame,
     &needSpeedGame,
     &noonShooterGame,
@@ -77,7 +73,13 @@ Game* games[] = {
     &tinyGolfGame,
     &towerStackerGame,
     &initialsGame,
-    &creditsGame};
+    &creditsGame,
+    &breakoutGame,
+    &microRacerGame,
+    &defenderMiniGame,
+    &jumpGame,
+    &heliCaveGame
+  };
 constexpr uint8_t GAME_COUNT = sizeof(games) / sizeof(games[0]);
 
 SingleButton menuButton;
@@ -110,8 +112,16 @@ void drawGameOverlay(Game& game) {
   u8g2.drawFrame(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
   u8g2.setFont(u8g2_font_5x8_tr);
   if (game.phase() == GamePhase::Start) {
-    u8g2.drawStr(3, 10, game.gameTitle());
-    u8g2.drawStr(3, 24, "Tap start");
+    if (game.showStartPromptPage()) {
+      u8g2.drawStr(20, 16, "Press");
+      u8g2.drawStr(13, 29, "to Start");
+    } else if (game.showStartScorePage()) {
+      u8g2.drawStr(3, 10, "Top Score");
+      u8g2.setFont(u8g2_font_4x6_tr);
+      u8g2.drawStr(3, 24, "--");
+    } else {
+      u8g2.drawStr(3, 10, game.gameTitle());
+    }
   } else if (game.phase() == GamePhase::End) {
     u8g2.drawStr(3, 10, "Game Over");
     u8g2.drawStr(3, 24, "Tap retry");

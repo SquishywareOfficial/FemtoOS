@@ -72,22 +72,29 @@ void TowerStackerGame::drawRunning(U8G2& u8g2) {
 }
 
 void TowerStackerGame::drawStart(U8G2& u8g2) {
+  loadHighScore();
   u8g2.drawFrame(0, 0, width + 2, height);
-  if (highScore_ > 0 && PlayerProfile::showScorePage()) {
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+  } else if (showStartScorePage()) {
     char initials[4];
     PlayerProfile::unpackDottedInitials(highScoreInitials_, initials);
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, "Top Score");
     u8g2.setFont(u8g2_font_4x6_tr);
     u8g2.setCursor(3, 24);
-    u8g2.print(initials);
-    u8g2.print(" ");
-    u8g2.print(highScore_);
-    u8g2.drawStr(3, 38, "Tap start");
+    if (highScore_ == 0) {
+      u8g2.print("--");
+    } else {
+      u8g2.print(initials);
+      u8g2.print(" ");
+      u8g2.print(highScore_);
+    }
   } else {
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, gameTitle());
-    u8g2.drawStr(3, 24, "Tap start");
   }
 }
 

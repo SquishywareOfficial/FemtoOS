@@ -129,24 +129,31 @@ void NoonShooterGame::drawRunning(U8G2& u8g2) {
 void NoonShooterGame::drawStart(U8G2& u8g2) {
   loadScores();
   u8g2.drawFrame(0, 0, width + 2, height);
-  if (bestLevel_ > 0 && PlayerProfile::showScorePage()) {
+  if (showStartPromptPage()) {
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(20, 16, "Press");
+    u8g2.drawStr(13, 29, "to Start");
+  } else if (showStartScorePage()) {
     char initials[4];
     PlayerProfile::unpackDottedInitials(bestInitials_, initials);
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, "Top Duel");
     u8g2.setFont(u8g2_font_4x6_tr);
     u8g2.setCursor(3, 23);
-    u8g2.print(initials);
-    u8g2.print(" L");
-    u8g2.print(bestLevel_);
-    u8g2.setCursor(3, 32);
-    if (bestReactionMs_ == 0) {
+    if (bestLevel_ == 0) {
       u8g2.print("--");
     } else {
-      u8g2.print(bestReactionMs_);
-      u8g2.print("ms");
+      u8g2.print(initials);
+      u8g2.print(" L");
+      u8g2.print(bestLevel_);
+      u8g2.setCursor(3, 32);
+      if (bestReactionMs_ == 0) {
+        u8g2.print("--");
+      } else {
+        u8g2.print(bestReactionMs_);
+        u8g2.print("ms");
+      }
     }
-    u8g2.drawStr(3, 38, "Tap start");
   } else {
     u8g2.drawCircle(56, 8, 5);
     u8g2.drawLine(4, 31, 67, 31);
@@ -154,8 +161,6 @@ void NoonShooterGame::drawStart(U8G2& u8g2) {
     drawGunslinger(u8g2, 46, 28, false);
     u8g2.setFont(u8g2_font_5x8_tr);
     u8g2.drawStr(3, 10, gameTitle());
-    u8g2.setFont(u8g2_font_4x6_tr);
-    u8g2.drawStr(3, 38, "Tap start");
   }
 }
 

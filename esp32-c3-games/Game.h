@@ -57,6 +57,9 @@ class Game {
         void clearExitRequest();
         GamePhase phase() const;
         const char* gameTitle() const;
+        uint8_t startIntroPage() const;
+        bool showStartScorePage() const;
+        bool showStartPromptPage() const;
         virtual bool hasCustomOverlay() const;
 
     protected:
