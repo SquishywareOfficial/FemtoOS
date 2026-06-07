@@ -39,7 +39,7 @@ jobs:
         run: arduino-cli core update-index && arduino-cli core install esp32:esp32
 
       - name: Install libraries
-        run: arduino-cli lib install U8g2
+        run: arduino-cli lib install U8g2 "NimBLE-Arduino"
 
       - name: Compile sketch
         run: arduino-cli compile --fqbn esp32:esp32:esp32c3 femtodeck-c3
