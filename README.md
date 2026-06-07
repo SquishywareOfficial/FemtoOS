@@ -1,54 +1,124 @@
-[![Build ESP32-C3 Games](https://github.com/atomic14/esp32-c3-oled-single-button-games/actions/workflows/build-esp32-c3-games.yml/badge.svg)](https://github.com/atomic14/esp32-c3-oled-single-button-games/actions/workflows/build-esp32-c3-games.yml)
+# FemtoDeck C3
 
-# ESP32-C3 OLED Single-Button Games
+FemtoDeck C3 is a tiny one-button app and game collection for the ESP32-C3
+0.42 inch OLED module. The screen is only `72x40`, so most apps use a `70x40`
+play area and lean hard into simple timing, single-button decisions, and chunky
+monochrome pixel art.
 
-This project is a collection of fairly crappy tiny games for the ESP32-C3 0.42in OLED module.
-The display is treated as a `70x40` game area (within the panel's `72x40` pixels),
-and all games are designed around a single button input on `GPIO9` (BOOT).
+This project was inspired by Atomic14's
+[esp32-c3-oled-single-button-games](https://github.com/atomic14/esp32-c3-oled-single-button-games).
+It originally started as adding new games, but then became a complete rewrite
+from the ground up.
 
-It's all been vibe coded - so quality is questionable!
+Repo shortcut: [git.new/esp32games](https://git.new/esp32games)
 
-You can pick up one of these cheap modules [here](https://s.click.aliexpress.com/e/_c3HD7IPz).
+## Hardware
 
-![Rubbish Games](docs/games.webp)
+- ESP32-C3 0.42 inch OLED module
+- OLED on I2C pins `GPIO5` / `GPIO6`
+- BOOT button on `GPIO9`
+- Optional controllable LED on `GPIO8`
+
+The always-on `POWER` LED is not controlled by the firmware. Games and apps
+that use an LED target `GPIO8`.
 
 ## Controls
 
-- `Tap` in menu: move to next game
-- `Long press` in menu, then release: launch selected game
-- In game start screen: `tap` to begin
-- In game over screen: `tap` to restart, `long press` to return to menu
+- Menu tap: move to the next item
+- Menu hold, then release: open the selected item
+- App or game tap: primary action
+- App or game hold: secondary action, back, or return to menu depending on context
+- End screens usually ignore input briefly so accidental button presses do not skip them
 
-## Current Games
+## Games
 
-- `Breakout` - one-button paddle direction switching
-- `Micro Racer` - tap to lane switch
-- `Defender Mini` - tap to switch altitude band, auto-fire
-- `Jump Run` - tap to jump over obstacles
-- `Heli Cave` - hold to rise, release to fall
+- Alien Raiders
+- Blackjack
+- Breakout '76
+- Cave Chopper
+- City Racer
+- Femto Field
+- Fishing Flick
+- Knife Throw
+- Maze Collector
+- Maze Runner
+- Mini Lander
+- Need Speed
+- Noon Shooter
+- Pet Simulator
+- Pipe Mania
+- Reactor
+- Simon
+- Tiny Golf
+- Tower Stacker
 
-## Architecture
+## Utilities
 
-- `Game` base class provides:
-  - button event handling (`pressed`, `released`, `click`, `longPress`)
-  - shared game state machine (`Start`, `Running`, `End`)
-  - common lifecycle hooks for concrete games
-- Each game lives in its own `*.h` and `*.cpp` and implements only running logic/drawing.
-- `esp32-c3-games/esp32-c3-games.ino` handles display init, menu, and game switching.
+- Stopwatch
+- Countdown
+- Counter
+- Dice Roller
+- Coin Flipper
+- Random Number
+- Metronome
+- Mouse Emulator
+- Reading
+- Options
+- About
 
-## Build and Upload
+## Build
 
-Use Arduino IDE, or `arduino-cli`:
+Install the ESP32 core and the U8g2 display library:
 
 ```sh
-arduino-cli compile --fqbn esp32:esp32:esp32c3 esp32-c3-games
-arduino-cli upload --fqbn esp32:esp32:esp32c3 --port /dev/cu.usbmodem1101 esp32-c3-games
+arduino-cli core install esp32:esp32
+arduino-cli lib install U8g2
 ```
 
-## CI
-
-GitHub Actions builds the sketch on push/PR with:
+Compile directly:
 
 ```sh
-arduino-cli compile --fqbn esp32:esp32:esp32c3 esp32-c3-games
+arduino-cli compile --fqbn esp32:esp32:esp32c3 femtodeck-c3
 ```
+
+Or use the build helper, which increments the build number before compiling:
+
+```powershell
+.\build.ps1
+```
+
+```sh
+./build.sh
+```
+
+## Upload
+
+Find the connected serial port:
+
+```sh
+arduino-cli board list
+```
+
+On Windows, upload to a COM port such as `COM9`:
+
+```sh
+arduino-cli upload --fqbn esp32:esp32:esp32c3 --port COM9 femtodeck-c3
+```
+
+On macOS or Linux, use the matching `/dev/...` port:
+
+```sh
+arduino-cli upload --fqbn esp32:esp32:esp32c3 --port /dev/ttyACM0 femtodeck-c3
+```
+
+## Browser Simulator
+
+The `sim/` folder contains a browser-based simulator for quick iteration on
+some apps without flashing the ESP32-C3 every time. It is not a perfect hardware
+emulator, but it is useful for checking menu flow, text fit, and basic gameplay
+ideas.
+
+## License
+
+FemtoDeck C3 is released under WTFPL + No Warranty Disclaimer. See `LICENSE` for
+the full terms.
