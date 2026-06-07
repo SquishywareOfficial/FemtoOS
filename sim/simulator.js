@@ -3,7 +3,7 @@
   const H = 40;
   const LONG_MS = 700;
   const END_LOCK_MS = 500;
-  const BUILD_TEXT = "v1.1 b28";
+  const BUILD_TEXT = "v1.1 b44";
   const READING_LINES_PER_PAGE = 3;
 
   const canvas = document.getElementById("oled");
@@ -2147,24 +2147,61 @@
     }
   }
 
-  class Credits extends Game {
+  class AboutSim extends Game {
     constructor() {
-      super("Credits");
-      this.pages = ["thedarkfalcon: Femto OS", "atomic14: Breakout", "atomic14: Micro Racer", "atomic14: Defender Mini", "atomic14: Jump Run", "atomic14: Heli Cave", "thedarkfalcon: Tower", "thedarkfalcon: Golf", "thedarkfalcon: Lander", "thedarkfalcon: Need Speed", "thedarkfalcon: Noon Shooter", "thedarkfalcon: Fishing Flick", "thedarkfalcon: Maze Runner", "thedarkfalcon: Maze Collector", "thedarkfalcon: Pipe Mania", "thedarkfalcon: Blackjack", "thedarkfalcon: Counter", "thedarkfalcon: Mouse Emulator", "thedarkfalcon: Reading", "thedarkfalcon: Stopwatch", "thedarkfalcon: Countdown", "thedarkfalcon: Options", "thedarkfalcon: Credits"];
+      super("About");
+      this.items = ["License", "Credits"];
+      this.credits = ["thedarkfalcon: Femto OS", "atomic14: Inspired by", "thedarkfalcon: Breakout '76", "thedarkfalcon: City Racer", "thedarkfalcon: Alien Raiders", "thedarkfalcon: Cave Chopper", "thedarkfalcon: Tower", "thedarkfalcon: Golf", "thedarkfalcon: Lander", "thedarkfalcon: Need Speed", "thedarkfalcon: Femto Field", "thedarkfalcon: Noon Shooter", "thedarkfalcon: Fishing Flick", "thedarkfalcon: Maze Runner", "thedarkfalcon: Maze Collector", "thedarkfalcon: Pipe Mania", "thedarkfalcon: Blackjack", "thedarkfalcon: Knife Throw", "thedarkfalcon: Reactor", "thedarkfalcon: Simon", "thedarkfalcon: Pet Simulator", "thedarkfalcon: Counter", "thedarkfalcon: Mouse Emulator", "thedarkfalcon: Reading", "thedarkfalcon: Stopwatch", "thedarkfalcon: Countdown", "thedarkfalcon: Dice Roller", "thedarkfalcon: Coin Flipper", "thedarkfalcon: Random Number", "thedarkfalcon: Metronome", "thedarkfalcon: Options", "thedarkfalcon: About"];
     }
     reset() {
+      this.mode = "select";
+      this.selection = 0;
       this.page = 0;
     }
     update(dt, input, now) {
+      if (this.mode === "select") {
+        if (input.click) this.selection = (this.selection + 1) % this.items.length;
+        if (input.longPress) {
+          this.mode = this.selection === 0 ? "license" : "credits";
+          this.page = 0;
+        }
+        return;
+      }
       if (input.longPress) {
         app.toMenu(now);
         return;
       }
-      if (input.click && ++this.page >= this.pages.length) this.finish(now);
+      if (input.click) {
+        const count = this.mode === "license" ? 4 : this.credits.length;
+        if (++this.page >= count) {
+          this.mode = "select";
+          this.page = 0;
+        }
+      }
     }
     draw() {
       gfx.rect(0, 0, W, H);
-      const [who, game] = this.pages[this.page].split(": ");
+      if (this.mode === "select") {
+        gfx.text(3, 8, "About");
+        gfx.text(58, 8, `${this.selection + 1}/2`);
+        gfx.text(3, 22, this.items[this.selection], 7);
+        gfx.text(3, 32, "Tap next", 7);
+        gfx.text(3, 39, "Hold open");
+        return;
+      }
+      if (this.mode === "license") {
+        const pages = [
+          ["License", "WTFPL +", "No Warranty"],
+          ["Copyright", "2026", "github:", "thedarkfalcon"],
+          ["Permission", "copy modify", "publish sell", "as you want"],
+          ["No Warranty", "provided as-is", "use at your", "own risk"]
+        ];
+        const page = pages[this.page];
+        gfx.text(3, 9, page[0], 7);
+        page.slice(1).forEach((line, i) => gfx.text(3, 20 + i * 9, line));
+        return;
+      }
+      const [who, game] = this.credits[this.page].split(": ");
       gfx.text(3, 9, game, 7);
       gfx.text(3, 19, "Developer");
       gfx.text(3, 28, "github:");
@@ -2172,13 +2209,13 @@
     }
     drawStart() {
       gfx.rect(0, 0, W, H);
-      gfx.text(3, 10, "Credits", 7);
+      gfx.text(3, 10, "About", 7);
       gfx.text(3, 24, "Tap to view", 7);
       gfx.text(3, 36, BUILD_TEXT);
     }
     drawEnd() {
       gfx.rect(0, 0, W, H);
-      gfx.text(3, 12, "Thanks", 7);
+      gfx.text(3, 12, "About", 7);
       gfx.text(3, 26, "Tap replay", 7);
       gfx.text(3, 32, BUILD_TEXT);
       gfx.text(3, 38, "Hold menu");
@@ -2189,19 +2226,23 @@
     constructor() {
       this.button = new Button();
       this.gameApps = [
-        new PlaceholderGame("Breakout"),
-        new PlaceholderGame("Micro Racer"),
-        new PlaceholderGame("Defender Mini"),
-        new PlaceholderGame("Jump Run"),
-        new PlaceholderGame("Heli Cave"),
+        new PlaceholderGame("Alien Raiders"),
+        new Blackjack(),
+        new PlaceholderGame("Breakout '76"),
+        new PlaceholderGame("Cave Chopper"),
+        new PlaceholderGame("City Racer"),
+        new PlaceholderGame("Femto Field"),
+        new FishingFlick(),
+        new PlaceholderGame("Knife Throw"),
+        new MazeRunner(true),
+        new MazeRunner(),
         new MiniLander(),
         new NeedSpeed(),
         new NoonShooter(),
-        new FishingFlick(),
-        new MazeRunner(),
-        new MazeRunner(true),
+        new PlaceholderGame("Pet Simulator"),
         new PipeMania(),
-        new Blackjack(),
+        new PlaceholderGame("Reactor"),
+        new PlaceholderGame("Simon"),
         new TinyGolf(),
         new TowerStacker()
       ];
@@ -2209,11 +2250,15 @@
         new StopwatchSim(),
         new CountdownSim(),
         new CounterSim(),
+        new PlaceholderGame("Dice Roller"),
+        new PlaceholderGame("Coin Flipper"),
+        new PlaceholderGame("Random Number"),
+        new PlaceholderGame("Metronome"),
         new MouseJigglerSim(),
         new ReadingSim()
       ];
       this.options = new OptionsGame();
-      this.credits = new Credits();
+      this.credits = new AboutSim();
       this.rootEntries = [
         { label: "Games", action: "games" },
         { label: "Utilities", action: "utilities" },

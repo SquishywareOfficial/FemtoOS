@@ -3,28 +3,36 @@
 #include <string.h>
 
 #include "App.h"
-#include "BlackjackGame.h"
-#include "BreakoutGame.h"
-#include "CountdownApp.h"
-#include "CounterApp.h"
-#include "CreditsApp.h"
-#include "DefenderMiniGame.h"
-#include "FishingFlickGame.h"
-#include "HeliCaveGame.h"
-#include "JumpGame.h"
-#include "MazeRunnerGame.h"
-#include "MicroRacerGame.h"
-#include "MiniLanderGame.h"
-#include "MouseEmulatorApp.h"
-#include "NeedSpeedGame.h"
-#include "NoonShooterGame.h"
-#include "OptionsApp.h"
-#include "PipeManiaGame.h"
+#include "src/games/BlackjackGame.h"
+#include "src/games/AlienRaidersGame.h"
+#include "src/games/Breakout76Game.h"
+#include "src/games/CaveChopperGame.h"
+#include "src/games/CityRacerGame.h"
+#include "src/apps/CountdownApp.h"
+#include "src/apps/CoinFlipperApp.h"
+#include "src/apps/CounterApp.h"
+#include "src/apps/CreditsApp.h"
+#include "src/apps/DiceRollerApp.h"
+#include "src/games/FemtoFieldGame.h"
+#include "src/games/FishingFlickGame.h"
+#include "src/games/KnifeThrowGame.h"
+#include "src/games/MazeRunnerGame.h"
+#include "src/apps/MetronomeApp.h"
+#include "src/games/MiniLanderGame.h"
+#include "src/apps/MouseEmulatorApp.h"
+#include "src/games/NeedSpeedGame.h"
+#include "src/games/NoonShooterGame.h"
+#include "src/games/NuclearReactorGame.h"
+#include "src/apps/OptionsApp.h"
+#include "src/apps/PetSimulatorApp.h"
+#include "src/games/PipeManiaGame.h"
 #include "PlayerProfile.h"
-#include "ReadingApp.h"
-#include "StopwatchApp.h"
-#include "TinyGolfGame.h"
-#include "TowerStackerGame.h"
+#include "src/apps/RandomNumberApp.h"
+#include "src/apps/ReadingApp.h"
+#include "src/games/SimonGame.h"
+#include "src/apps/StopwatchApp.h"
+#include "src/games/TinyGolfGame.h"
+#include "src/games/TowerStackerGame.h"
 #include "Version.h"
 
 class U8G2_SSD1306_72X40_NONAME_F_HW_I2C : public U8G2 {
@@ -47,13 +55,13 @@ constexpr uint8_t APP_HEIGHT = 40;
 constexpr uint8_t APP_LEFT = 1;
 constexpr uint16_t BOOT_SPLASH_MS = 2000;
 
-BreakoutGame breakoutGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
-MicroRacerGame microRacerGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
-DefenderMiniGame defenderMiniGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
-JumpGame jumpGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
-HeliCaveGame heliCaveGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+Breakout76Game breakout76Game(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+CityRacerGame cityRacerGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+AlienRaidersGame alienRaidersGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+CaveChopperGame caveChopperGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 MiniLanderGame miniLanderGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 NeedSpeedGame needSpeedGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+FemtoFieldGame femtoFieldGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 NoonShooterGame noonShooterGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 FishingFlickGame fishingFlickGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 MazeRunnerGame mazeRunnerGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
@@ -62,12 +70,20 @@ PipeManiaGame pipeManiaGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 BlackjackGame blackjackGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 TinyGolfGame tinyGolfGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 TowerStackerGame towerStackerGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+KnifeThrowGame knifeThrowGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+NuclearReactorGame nuclearReactorGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+SimonGame simonGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 
 StopwatchApp stopwatchApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 CountdownApp countdownApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 CounterApp counterApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 MouseEmulatorApp mouseEmulatorApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 ReadingApp readingApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+DiceRollerApp diceRollerApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+CoinFlipperApp coinFlipperApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+RandomNumberApp randomNumberApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+MetronomeApp metronomeApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+PetSimulatorApp petSimulatorApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 
 OptionsApp optionsApp(APP_WIDTH, APP_HEIGHT);
 CreditsApp creditsApp(APP_WIDTH, APP_HEIGHT);
@@ -99,19 +115,23 @@ MenuEntry rootMenu[] = {
 };
 
 MenuEntry gamesMenu[] = {
-    {nullptr, MenuAction::Launch, &breakoutGame},
-    {nullptr, MenuAction::Launch, &microRacerGame},
-    {nullptr, MenuAction::Launch, &defenderMiniGame},
-    {nullptr, MenuAction::Launch, &jumpGame},
-    {nullptr, MenuAction::Launch, &heliCaveGame},
+    {nullptr, MenuAction::Launch, &alienRaidersGame},
+    {nullptr, MenuAction::Launch, &blackjackGame},
+    {nullptr, MenuAction::Launch, &breakout76Game},
+    {nullptr, MenuAction::Launch, &caveChopperGame},
+    {nullptr, MenuAction::Launch, &cityRacerGame},
+    {nullptr, MenuAction::Launch, &femtoFieldGame},
+    {nullptr, MenuAction::Launch, &fishingFlickGame},
+    {nullptr, MenuAction::Launch, &knifeThrowGame},
+    {nullptr, MenuAction::Launch, &mazeCollectorGame},
+    {nullptr, MenuAction::Launch, &mazeRunnerGame},
     {nullptr, MenuAction::Launch, &miniLanderGame},
     {nullptr, MenuAction::Launch, &needSpeedGame},
     {nullptr, MenuAction::Launch, &noonShooterGame},
-    {nullptr, MenuAction::Launch, &fishingFlickGame},
-    {nullptr, MenuAction::Launch, &mazeRunnerGame},
-    {nullptr, MenuAction::Launch, &mazeCollectorGame},
+    {nullptr, MenuAction::Launch, &petSimulatorApp},
     {nullptr, MenuAction::Launch, &pipeManiaGame},
-    {nullptr, MenuAction::Launch, &blackjackGame},
+    {nullptr, MenuAction::Launch, &nuclearReactorGame},
+    {nullptr, MenuAction::Launch, &simonGame},
     {nullptr, MenuAction::Launch, &tinyGolfGame},
     {nullptr, MenuAction::Launch, &towerStackerGame},
     {"Back", MenuAction::Back, nullptr},
@@ -121,6 +141,10 @@ MenuEntry utilitiesMenu[] = {
     {nullptr, MenuAction::Launch, &stopwatchApp},
     {nullptr, MenuAction::Launch, &countdownApp},
     {nullptr, MenuAction::Launch, &counterApp},
+    {nullptr, MenuAction::Launch, &diceRollerApp},
+    {nullptr, MenuAction::Launch, &coinFlipperApp},
+    {nullptr, MenuAction::Launch, &randomNumberApp},
+    {nullptr, MenuAction::Launch, &metronomeApp},
     {nullptr, MenuAction::Launch, &mouseEmulatorApp},
     {nullptr, MenuAction::Launch, &readingApp},
     {"Back", MenuAction::Back, nullptr},
@@ -136,6 +160,7 @@ MenuView activeReturnMenu = MenuView::Root;
 uint8_t menuIndex = 0;
 bool menuSelectArmed = false;
 bool bootSplashActive = true;
+bool bootSkipReleasePending = false;
 uint32_t bootStartedAtMs = 0;
 App* activeApp = nullptr;
 
@@ -322,14 +347,23 @@ void loop(void) {
 
   u8g2.clearBuffer();
 
+  if (bootSplashActive && (buttonDown || (nowMs - bootStartedAtMs) >= BOOT_SPLASH_MS)) {
+    bootSplashActive = false;
+    bootSkipReleasePending = buttonDown;
+    menuButton.reset(buttonDown, nowMs);
+  }
+
   if (bootSplashActive) {
     drawBootSplash();
-    if ((nowMs - bootStartedAtMs) >= BOOT_SPLASH_MS) {
-      bootSplashActive = false;
-      menuButton.reset(buttonDown, nowMs);
-    }
   } else if (activeApp == nullptr) {
-    updateMenu(nowMs, buttonDown);
+    if (bootSkipReleasePending) {
+      if (!buttonDown) {
+        bootSkipReleasePending = false;
+        menuButton.reset(false, nowMs);
+      }
+    } else {
+      updateMenu(nowMs, buttonDown);
+    }
     drawMenu();
   } else {
     activeApp->tick(nowMs, buttonDown);

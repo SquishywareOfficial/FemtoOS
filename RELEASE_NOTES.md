@@ -1,14 +1,115 @@
 # Release Notes
 
-Version `1.0` is the original atomic14 baseline. Build numbers are tracked from the local expanded build history onward.
+## v1.1 b44
 
-To create a new build with an incremented build number, run:
+- Rewrote the README around FemtoDeck C3, removed the inherited game image, and documented current build/upload flow.
+- Renamed the on-device `Credits` menu item to `About` with separate License and Credits sections.
+- Added concise on-device WTFPL + No Warranty license details.
+- Fixed credits pages for Reactor, Reading, and Random Number so they show their developer instead of the repo URL.
+- Kept long-press from About detail pages as a return-to-menu shortcut.
 
-```powershell
-.\build.ps1
-```
+## v1.1 b43
 
-If compiling manually with `arduino-cli compile`, bump `femtodeck-c3/Version.h` first and add a note here.
+- Corrected Femto Field attempts to use one shared five-miss bank across the whole round, rather than resetting attempts for every event.
+- After the shared bank is exhausted, the current failed event scores zero and each remaining event in that round gets one pressure try.
+- Reset the attempt bank only when a clean round advances to the next harder round.
+
+## v1.1 b42
+
+- Changed Simon hold input to use a shorter local hold threshold; releasing before that counts as tap.
+- Cleaned up per-save delete confirmation layout in Save Manager so the selected save and erase/cancel controls do not overlap.
+
+## v1.1 b41
+
+- Changed Femto Field progression from debug mode to five attempts per event until a zero-score event, then one attempt for the rest of that round.
+- Made Femto Field end after a round with any zero-score event, otherwise advance to the next harder round while keeping cumulative score.
+- Added a hammer throw field animation, including backward throws when the direction is wrong.
+- Changed Javelin angle selection to hold-and-release timing instead of tapping an automatically sweeping angle.
+- Sorted the Games menu alphabetically while leaving Utilities in their existing order.
+
+## v1.1 b40
+
+- Consumed the boot splash skip tap so it no longer advances the main menu from Games to Utilities.
+- Shortened Coin Flipper instructions so they fit on screen.
+- Simplified Simon playback and input screens to text-only prompts instead of flashing boxes.
+- Made Save Manager confirmations explicitly say `DELETE` before erasing a selected save.
+
+## v1.1 b39
+
+- Changed Femto Field debug flow so qualifying an event advances immediately instead of forcing all five attempts.
+- Hid the Hurdles `TAP JUMP` hint after the first jump in an attempt.
+- Added fallen hurdle rendering after a failed jump and clamped hurdle drawing to avoid off-screen line flashes.
+
+## v1.1 b38
+
+- Moved Coin Flipper result text away from the coin, with the coin on the right and larger result text on the left.
+- Reworked Metronome with instruction pages, a cleaner BPM-only live screen, and a much longer hold-to-exit timeout.
+- Moved Pet Simulator into Games, shortened its controls text, and added an idle pet-only wander screen after inactivity.
+- Rebuilt Knife Throw around a spinning board with a person, moving reticle, delayed knife travel, and person-hit failure.
+- Reworked Reactor display to show current kW and total kWh separately, added stronger rod cooling, cold stall failure, and a radioactive splash symbol.
+- Made Simon start with an easy tap cue and show clearer `TAP` / `HOLD` prompts and failure feedback.
+- Added an Options Save Manager with per-save deletion and two-step delete-all confirmation.
+- Reordered Utilities so Mouse Emulator is second-to-last and Reading is last.
+
+## v1.1 b37
+
+- Made Alien Raiders shield layers visibly disappear as shielded enemies take damage.
+- Reduced diagonal spread fire, added stronger late-game enemies, tougher bosses, and boss return fire that the player must dodge.
+- Made bomb pickups look like cartoon bombs with a visible fuse and clarified the Alien Raiders intro with `Defend Station` text.
+- Reworked Femto Field hurdles into a Jump Run style tap-to-jump event and removed the separate Jump Run source/menu entry.
+- Enabled Femto Field debug flow with five attempts per event before advancing, so all events can be tested without qualifying first.
+
+## v1.1 b36
+
+- Added utility apps for dice rolling, coin flipping, random number generation, metronome timing, and a persistent pet simulator.
+- Added simple games `Knife Throw`, `Reactor`, and `Simon`, each with start/high-score/prompt screens where applicable.
+- Wired the new apps into the Games and Utilities menus and added credits entries.
+
+## v1.1 b35
+
+- Made the FemtoDeck C3 boot splash skippable by pressing the button.
+- Retuned City Racer to keep faster road speed while adding enough traffic rows to feel active, with cars-passed scoring and clearer level progression.
+- Extended Alien Raiders late-game scaling with stronger shielded enemies, stacking player shields, limited smart-bomb damage, higher weapon tiers, and slow boss waves every 100 kills.
+- Fixed Femto Field hurdles so hurdles move toward the runner, with clearer hold/release prompts.
+
+## v1.1 b34
+
+- Retuned City Racer toward faster racing with far fewer traffic rows and much larger gaps between cars.
+- Changed Alien Raiders weapon pickups into permanent additive weapon levels so collecting an upgrade cannot downgrade a good weapon.
+- Moved Cave Chopper's splash cave line away from the title text.
+- Made Femto Field hurdles show the hurdle approaching the runner and changed the airborne prompt away from the confusing `JUMP` label.
+
+## v1.1 b33
+
+- Rebalanced City Racer with slower, sparser early traffic and guaranteed one-direction-safe lane progression.
+- Clarified Alien Raiders by moving the base launch animation into a one-time game intro, flipping the player ship forward, reshaping enemy ships, reducing base fire rate, and making powerups rarer/more distinct.
+- Made Cave Chopper more forgiving with a smaller chopper collision profile, larger cave gaps, slower initial speed, and gentler vertical acceleration.
+- Relaxed Femto Field's first-round qualifying targets and timing cadence so the 100m dash and later events can be tested without requiring near-perfect timing.
+
+## v1.1 b32
+
+- Added `Femto Field`, a one-button multi-event track-and-field game with 100m dash, hurdles, long jump, hammer throw, javelin, and high jump.
+- Added cumulative scoring, lives, harder looping rounds, a hard-to-earn extra life threshold, total high score, and per-event point records.
+- Added timing cue penalties where early presses count double, plus GPIO8 cue lighting during ideal `PUSH` windows.
+
+## v1.1 b31
+
+- Added an Alien Raiders establishing splash where the player ship launches from the defended station before the view pans toward incoming raiders.
+- Changed Breakout '76 paddle control to match the old single-button feel more closely: tap reverses direction and the paddle clamps at screen edges instead of auto-reversing.
+
+## v1.1 b30
+
+- Rebuilt the original five-game set from new source files and removed the old game implementations.
+- Replaced Breakout with `Breakout '76`, adding varied launches, paddle-influenced bounces, level patterns, and powerups.
+- Replaced Micro Racer with `City Racer`, using forward-facing traffic and fairer level progression.
+- Replaced Defender Mini with `Alien Raiders`, adding shielded enemies, progressive difficulty, and temporary upgrades.
+- Replaced Heli Cave with `Cave Chopper`, adding a chopper sprite with animated rotors and readable scoring.
+- Recreated `Jump Run` from scratch so the original game source set is fully removed.
+
+## v1.1 b29
+
+- Reorganized firmware source into Arduino-compatible `src/games` and `src/apps` folders.
+- Kept shared runtime files in the sketch root and updated include paths for the new layout.
 
 ## v1.1 b28
 
