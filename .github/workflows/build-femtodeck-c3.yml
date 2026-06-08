@@ -199,6 +199,11 @@ jobs:
                   color: #b8c2d6;
                   line-height: 1.5;
                 }
+                .version {
+                  margin: 12px 0 0;
+                  color: #dbeafe;
+                  font-weight: 700;
+                }
                 esp-web-install-button {
                   margin: 18px 0;
                 }
@@ -234,6 +239,7 @@ jobs:
               <main>
                 <h1>FemtoDeck C3 Installer</h1>
                 <p>Flash FemtoDeck C3 onto an ESP32-C3 with the 0.42 inch OLED module.</p>
+                <p class="version">Firmware version: ${{ steps.package.outputs.build_text }}</p>
                 <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
                 <div class="actions">
                   <a class="button" href="simulator/">Open Simulator</a>
