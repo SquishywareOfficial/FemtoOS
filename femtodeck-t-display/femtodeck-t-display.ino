@@ -11,6 +11,8 @@
 #include "src/apps/StopwatchApp.h"
 #include "src/apps/CountdownApp.h"
 #include "src/apps/MetronomeApp.h"
+#include "src/apps/WiFiSetupApp.h"
+#include "src/apps/CommunicatorApp.h"
 
 #include "src/games/BlackjackGame.h"
 #include "src/games/AlienRaidersGame.h"
@@ -48,6 +50,8 @@ RandomNumberApp randomNumberApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 StopwatchApp stopwatchApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 CountdownApp countdownApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 MetronomeApp metronomeApp(SCREEN_WIDTH, SCREEN_HEIGHT);
+WiFiSetupApp wifiSetupApp(SCREEN_WIDTH, SCREEN_HEIGHT);
+CommunicatorApp communicatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 AlienRaidersGame alienRaidersGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 BlackjackGame blackjackGame(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -92,7 +96,9 @@ App* apps[] = {
     &randomNumberApp,
     &stopwatchApp,
     &countdownApp,
-    &metronomeApp
+    &metronomeApp,
+    &wifiSetupApp,
+    &communicatorApp
 };
 constexpr uint8_t APP_COUNT = sizeof(apps) / sizeof(apps[0]);
 uint8_t appIndex = 0;
@@ -127,7 +133,6 @@ void loop() {
     tft.setCursor(10, 25);
     tft.println("B1: Next, Hold B1: Launch, B2: Prev");
 
-    // Simple scrolling menu
     if (appIndex < scrollOffset) scrollOffset = appIndex;
     if (appIndex >= scrollOffset + 8) scrollOffset = appIndex - 7;
 
