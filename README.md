@@ -72,7 +72,9 @@ The T-Display target includes a repo-local `tft_setup.h` for TFT_eSPI, so you sh
 
 When GitHub Pages is deployed, you can flash your device directly from the browser or try the C3 simulator:
 
-- **Web Installer**: `https://thedarkfalcon.github.io/femtodeck-esp32-c3/`
+- **Web Installer for ESP32-C3 and T-Display**: `https://thedarkfalcon.github.io/femtodeck-esp32-c3/`
+  - Select `ESP32-C3` for the 0.42 inch OLED C3 build.
+  - Select `ESP32` for the FemtoDeck T-Display build.
 - **Simulator**: `https://thedarkfalcon.github.io/femtodeck-esp32-c3/simulator/`
 
 The browser installer supports both board types and is the recommended way for most users to flash their device.
