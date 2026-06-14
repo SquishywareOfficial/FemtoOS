@@ -73,13 +73,13 @@ jobs:
             @echo off
             python -m pip install --upgrade esptool
             python -m esptool --chip esp32c3 --port %1 --baud 460800 write_flash -z 0x0 ${{ matrix.board }}-merged.bin
-EOF
+          EOF
           else
             cat > "$firmware_dir/flash-windows.bat" <<EOF
             @echo off
             python -m pip install --upgrade esptool
             python -m esptool --chip esp32 --port %1 --baud 460800 write_flash -z 0x10000 ${{ matrix.board }}.ino.bin
-EOF
+          EOF
           fi
 
           echo "build_text=$build_text" >> "$GITHUB_OUTPUT"
@@ -141,7 +141,7 @@ EOF
               <a href="simulator/">Open C3 Simulator</a>
             </body>
           </html>
-EOF
+          EOF
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
