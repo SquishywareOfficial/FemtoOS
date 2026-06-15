@@ -17,6 +17,8 @@
 #include "nerdSHA256plus.h"
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <hal/sha_ll.h>
 #include <sha/sha_parallel_engine.h>
 #include <soc/dport_access.h>
@@ -32,6 +34,12 @@ constexpr const char* DEFAULT_POOL_PASS = "x";
 constexpr const char* DEFAULT_WALLET = "bc1qfreyhgyjj03pk60jdpym2tmcx780jmsgcvj8gl";
 constexpr const char* SETUP_AP_SSID = "FemtoMiner Setup";
 constexpr const char* SETUP_AP_PASS = "femtominer";
+#if defined(CONFIG_IDF_TARGET_ESP32)
+constexpr UBaseType_t MINER_TASK_PRIORITY = 3;
+constexpr UBaseType_t SOFTWARE_MINER_TASK_PRIORITY = 2;
+#else
+constexpr UBaseType_t MINER_TASK_PRIORITY = 1;
+#endif
 
 enum class State : uint8_t {
   Idle,
@@ -188,6 +196,14 @@ struct Work {
   bool ready = false;
 };
 
+#if defined(CONFIG_IDF_TARGET_ESP32)
+struct WorkerShare {
+  uint32_t generation = 0;
+  uint32_t nonce = 0;
+  double difficulty = 0.0;
+};
+#endif
+
 class MinerEngine {
 public:
   MinerEngine() = default;
@@ -201,7 +217,7 @@ public:
     stopRequested_ = false;
     resetStats();
     setState(State::ConnectingWifi);
-    BaseType_t ok = xTaskCreate(taskEntry, "FemtoMiner", 10240, this, 1, &task_);
+    BaseType_t ok = xTaskCreate(taskEntry, "FemtoMiner", 10240, this, MINER_TASK_PRIORITY, &task_);
     if (ok != pdPASS) {
       task_ = nullptr;
       setError("Task create failed");
@@ -216,6 +232,9 @@ public:
       return;
     }
     stopRequested_ = true;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    softwareStopRequested_ = true;
+#endif
     setState(State::Stopping);
     client_.stop();
     const uint32_t started = millis();
@@ -226,6 +245,9 @@ public:
       vTaskDelete(task_);
       task_ = nullptr;
     }
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    stopSoftwareWorker();
+#endif
     client_.stop();
     WiFi.disconnect(false, false);
     WiFi.mode(WIFI_OFF);
@@ -262,6 +284,9 @@ private:
 
   void run() {
     runWorker();
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    stopSoftwareWorker();
+#endif
     client_.stop();
     WiFi.disconnect(false, false);
     WiFi.mode(WIFI_OFF);
@@ -300,6 +325,10 @@ private:
     sendAuth(requestId++);
     sendSuggestDifficulty(requestId++, poolDifficulty);
     setState(State::Mining);
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    startSoftwareWorker();
+    if (work.ready) publishSoftwareWork(work, poolDifficulty);
+#endif
 
     while (!stopRequested_) {
       if (!client_.connected()) {
@@ -313,11 +342,18 @@ private:
         parseLine(line, sub, work, poolDifficulty, subscribed);
       }
 
+#if defined(CONFIG_IDF_TARGET_ESP32)
+      drainSoftwareShares(work, poolDifficulty, requestId);
+#endif
+
       if (work.ready) {
         mineBatch(work, poolDifficulty, requestId);
       } else {
         delay(30);
       }
+#if defined(CONFIG_IDF_TARGET_ESP32)
+      drainSoftwareShares(work, poolDifficulty, requestId);
+#endif
       updateRate(lastRateAt, lastRateHashes);
       vTaskDelay(1);
     }
@@ -415,6 +451,9 @@ private:
     if (strcmp(method, "mining.set_difficulty") == 0) {
       poolDifficulty = doc["params"][0] | poolDifficulty;
       setPoolDifficulty(poolDifficulty);
+#if defined(CONFIG_IDF_TARGET_ESP32)
+      updateSoftwareDifficulty(poolDifficulty);
+#endif
       return;
     }
 
@@ -440,6 +479,9 @@ private:
       work.sub = sub;
       work.nextNonce = 0xDA54E700 + stats_.jobs * 0x10000UL;
       work.ready = buildWork(work);
+#if defined(CONFIG_IDF_TARGET_ESP32)
+      if (work.ready) publishSoftwareWork(work, poolDifficulty);
+#endif
       incrementJobs();
       return;
     }
@@ -502,6 +544,157 @@ private:
   }
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
+  static constexpr uint32_t SOFTWARE_NONCE_OFFSET = 0x40000000UL;
+
+  static void softwareTaskEntry(void* ctx) {
+    static_cast<MinerEngine*>(ctx)->runSoftwareWorker();
+  }
+
+  bool startSoftwareWorker() {
+    if (softwareTask_ != nullptr) return true;
+    if (workerMutex_ == nullptr) {
+      workerMutex_ = xSemaphoreCreateMutex();
+    }
+    if (shareQueue_ == nullptr) {
+      shareQueue_ = xQueueCreate(8, sizeof(WorkerShare));
+    }
+    if (workerMutex_ == nullptr || shareQueue_ == nullptr) {
+      return false;
+    }
+
+    softwareStopRequested_ = false;
+    workerHasWork_ = false;
+    workerGeneration_ = 0;
+    xQueueReset(shareQueue_);
+    BaseType_t ok = xTaskCreate(softwareTaskEntry, "FemtoSw", 6144, this,
+                                SOFTWARE_MINER_TASK_PRIORITY, &softwareTask_);
+    if (ok != pdPASS) {
+      softwareTask_ = nullptr;
+      return false;
+    }
+    return true;
+  }
+
+  void stopSoftwareWorker() {
+    softwareStopRequested_ = true;
+    const uint32_t started = millis();
+    while (softwareTask_ != nullptr && millis() - started < 800) {
+      delay(10);
+    }
+    if (softwareTask_ != nullptr) {
+      vTaskDelete(softwareTask_);
+      softwareTask_ = nullptr;
+    }
+    if (shareQueue_ != nullptr) {
+      vQueueDelete(shareQueue_);
+      shareQueue_ = nullptr;
+    }
+    if (workerMutex_ != nullptr) {
+      vSemaphoreDelete(workerMutex_);
+      workerMutex_ = nullptr;
+    }
+    workerHasWork_ = false;
+  }
+
+  void publishSoftwareWork(const Work& work, double poolDifficulty) {
+    if (workerMutex_ == nullptr || shareQueue_ == nullptr) return;
+    if (xSemaphoreTake(workerMutex_, pdMS_TO_TICKS(20)) != pdTRUE) return;
+    workerWork_ = work;
+    workerWork_.nextNonce = work.nextNonce + SOFTWARE_NONCE_OFFSET;
+    workerPoolDifficulty_ = poolDifficulty;
+    workerHasWork_ = workerWork_.ready;
+    workerGeneration_++;
+    xQueueReset(shareQueue_);
+    xSemaphoreGive(workerMutex_);
+  }
+
+  void updateSoftwareDifficulty(double poolDifficulty) {
+    if (workerMutex_ == nullptr) return;
+    if (xSemaphoreTake(workerMutex_, pdMS_TO_TICKS(5)) != pdTRUE) return;
+    workerPoolDifficulty_ = poolDifficulty;
+    xSemaphoreGive(workerMutex_);
+  }
+
+  void drainSoftwareShares(const Work& work, double poolDifficulty, uint32_t& requestId) {
+    if (shareQueue_ == nullptr) return;
+    WorkerShare share;
+    while (xQueueReceive(shareQueue_, &share, 0) == pdTRUE) {
+      if (share.generation != workerGeneration_) continue;
+      if (share.difficulty <= poolDifficulty) continue;
+      if (!client_.connected()) continue;
+      noteBest(share.difficulty);
+      sendSubmit(requestId++, work, share.nonce);
+    }
+  }
+
+  void runSoftwareWorker() {
+    Work localWork;
+    double localDifficulty = 0.0;
+    uint32_t localGeneration = 0;
+    bool haveWork = false;
+
+    while (!stopRequested_ && !softwareStopRequested_) {
+      if (workerMutex_ != nullptr && xSemaphoreTake(workerMutex_, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (workerHasWork_ && workerGeneration_ != localGeneration) {
+          localWork = workerWork_;
+          localDifficulty = workerPoolDifficulty_;
+          localGeneration = workerGeneration_;
+          haveWork = true;
+        } else if (haveWork) {
+          localDifficulty = workerPoolDifficulty_;
+        }
+        xSemaphoreGive(workerMutex_);
+      }
+
+      if (!haveWork) {
+        vTaskDelay(2);
+        continue;
+      }
+
+      mineBatchSoftwareWorker(localWork, localDifficulty, localGeneration);
+      vTaskDelay(1);
+    }
+
+    softwareTask_ = nullptr;
+    vTaskDelete(nullptr);
+  }
+
+  void mineBatchSoftwareWorker(Work& work, double poolDifficulty, uint32_t generation) {
+    uint8_t hash[32];
+    uint32_t foundNonce = 0;
+    double foundDiff = 0.0;
+    bool found = false;
+    uint32_t processed = 0;
+    double localBest = 0.0;
+
+    for (uint16_t i = 0; i < 4096 && !stopRequested_ && !softwareStopRequested_; i++) {
+      if ((i & 0xFF) == 0 && generation != workerGeneration_) break;
+      const uint32_t nonce = work.nextNonce++;
+      memcpy(work.paddedHeader + 76, &nonce, sizeof(nonce));
+      processed++;
+      if (nerd_sha256d_baked(work.midstate, work.paddedHeader + 64, work.bake, hash)) {
+        const double diff = difficultyFromHash(hash);
+        if (diff > localBest) localBest = diff;
+        if (diff > poolDifficulty) {
+          found = true;
+          foundNonce = nonce;
+          foundDiff = diff;
+          break;
+        }
+      }
+    }
+
+    noteHashes(processed, localBest);
+    if (found && shareQueue_ != nullptr) {
+      WorkerShare share;
+      share.generation = generation;
+      share.nonce = foundNonce;
+      share.difficulty = foundDiff;
+      xQueueSend(shareQueue_, &share, 0);
+      noteBest(foundDiff);
+    }
+  }
+
   static inline void shaWaitIdleEsp32() {
     while (DPORT_REG_READ(SHA_256_BUSY_REG)) {}
   }
@@ -853,6 +1046,16 @@ private:
   WiFiClient client_;
   TaskHandle_t task_ = nullptr;
   volatile bool stopRequested_ = false;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+  TaskHandle_t softwareTask_ = nullptr;
+  QueueHandle_t shareQueue_ = nullptr;
+  SemaphoreHandle_t workerMutex_ = nullptr;
+  volatile bool softwareStopRequested_ = false;
+  volatile uint32_t workerGeneration_ = 0;
+  bool workerHasWork_ = false;
+  Work workerWork_;
+  double workerPoolDifficulty_ = 0.00015;
+#endif
   uint32_t startedAtMs_ = 0;
   Stats stats_;
   portMUX_TYPE mux_ = portMUX_INITIALIZER_UNLOCKED;

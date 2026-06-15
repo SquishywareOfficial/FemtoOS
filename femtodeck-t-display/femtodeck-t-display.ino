@@ -19,6 +19,7 @@
 #include "src/apps/CommunicatorApp.h"
 #include "src/apps/CreditsApp.h"
 #include "src/apps/OptionsApp.h"
+#include "src/apps/AutoLaunchSettingsApp.h"
 #include "src/apps/PetSimulatorApp.h"
 #include "src/apps/ReadingApp.h"
 
@@ -56,11 +57,9 @@ constexpr uint16_t MENU_ROW_H = 13;
 constexpr uint16_t MENU_LEFT = 12;
 constexpr uint16_t MENU_RIGHT = SCREEN_WIDTH - 12;
 constexpr uint16_t BOOT_SPLASH_MS = 2000;
+constexpr uint16_t AUTO_LAUNCH_NOTICE_MS = 2000;
 constexpr uint16_t APP_RUNNING_RENDER_MS = 33;
 constexpr uint16_t APP_STATIC_RENDER_MS = 2000;
-constexpr const char* DEBUG_PREF_NS = "debug";
-constexpr const char* AUTO_LAUNCH_KEY = "auto_app";
-constexpr const char* AUTO_MINER_START_KEY = "auto_miner";
 
 CounterApp counterApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 MouseEmulatorApp mouseEmulatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -77,6 +76,7 @@ EspContactsApp espContactsApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 CommunicatorApp communicatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 CreditsApp creditsApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 OptionsApp optionsApp(SCREEN_WIDTH, SCREEN_HEIGHT);
+AutoLaunchSettingsApp autoLaunchSettingsApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 PetSimulatorApp petSimulatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 ReadingApp readingApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -169,9 +169,46 @@ MenuEntry appsMenu[] = {
 
 MenuEntry settingsMenu[] = {
     {nullptr, MenuAction::Launch, &optionsApp},
+    {nullptr, MenuAction::Launch, &autoLaunchSettingsApp},
     {nullptr, MenuAction::Launch, &wifiSetupApp},
     {"Back", MenuAction::Back, nullptr},
 };
+
+App* autoLaunchChoices[] = {
+    &alienRaidersGame,
+    &blackjackGame,
+    &breakout76Game,
+    &caveChopperGame,
+    &cityRacerGame,
+    &femtoFieldGame,
+    &fishingFlickGame,
+    &knifeThrowGame,
+    &mazeCollectorGame,
+    &mazeRunnerGame,
+    &miniLanderGame,
+    &needSpeedGame,
+    &noonShooterGame,
+    &petSimulatorApp,
+    &pipeManiaGame,
+    &nuclearReactorGame,
+    &simonGame,
+    &tinyGolfGame,
+    &towerStackerGame,
+    &clockApp,
+    &stopwatchApp,
+    &countdownApp,
+    &counterApp,
+    &diceRollerApp,
+    &coinFlipperApp,
+    &randomNumberApp,
+    &metronomeApp,
+    &femtoMinerApp,
+    &espContactsApp,
+    &communicatorApp,
+    &mouseEmulatorApp,
+    &readingApp,
+};
+constexpr uint8_t AUTO_LAUNCH_CHOICE_COUNT = sizeof(autoLaunchChoices) / sizeof(autoLaunchChoices[0]);
 
 constexpr uint8_t ROOT_MENU_COUNT = sizeof(rootMenu) / sizeof(rootMenu[0]);
 constexpr uint8_t GAMES_MENU_COUNT = sizeof(gamesMenu) / sizeof(gamesMenu[0]);
@@ -190,14 +227,17 @@ bool menuInputLockedUntilRelease = false;
 bool bootSplashActive = true;
 bool bootSkipReleasePending = false;
 bool autoLaunchAttempted = false;
-bool autoLaunchSuppressed = false;
-bool debugMinerAutoStart = false;
+bool autoLaunchNoticeActive = false;
+bool autoLaunchNoticeDrawn = false;
+bool pendingAutoLaunchAutoRun = false;
 uint32_t bootStartedAtMs = 0;
+uint32_t autoLaunchNoticeStartedAtMs = 0;
 App* activeApp = nullptr;
 bool appRenderDue = false;
 uint32_t nextAppRenderMs = 0;
 AppPhase lastRenderedAppPhase = AppPhase::Start;
 String serialCommand;
+String pendingAutoLaunchTitle;
 
 bool isButton1Down() { return digitalRead(BUTTON_1) == LOW; }
 bool isButton2Down() { return digitalRead(BUTTON_2) == LOW; }
@@ -292,51 +332,29 @@ void printAppList() {
   printAppsInMenu(settingsMenu, SETTINGS_MENU_COUNT);
 }
 
-String loadAutoLaunchTitle() {
-  Preferences prefs;
-  prefs.begin(DEBUG_PREF_NS, true);
-  String title = prefs.getString(AUTO_LAUNCH_KEY, "");
-  prefs.end();
-  title.trim();
-  return title;
-}
-
 void saveAutoLaunchTitle(const String& title) {
-  Preferences prefs;
-  prefs.begin(DEBUG_PREF_NS, false);
-  prefs.putString(AUTO_LAUNCH_KEY, title);
-  prefs.end();
+  AutoLaunchSettings::Config config = AutoLaunchSettings::load();
+  config.appTitle = title;
+  config.enabled = title.length() > 0;
+  AutoLaunchSettings::save(config);
 }
 
 void clearAutoLaunchTitle() {
-  Preferences prefs;
-  prefs.begin(DEBUG_PREF_NS, false);
-  prefs.remove(AUTO_LAUNCH_KEY);
-  prefs.end();
-}
-
-bool loadDebugMinerAutoStart() {
-  Preferences prefs;
-  prefs.begin(DEBUG_PREF_NS, true);
-  const bool enabled = prefs.getBool(AUTO_MINER_START_KEY, false);
-  prefs.end();
-  return enabled;
-}
-
-void saveDebugMinerAutoStart(bool enabled) {
-  Preferences prefs;
-  prefs.begin(DEBUG_PREF_NS, false);
-  prefs.putBool(AUTO_MINER_START_KEY, enabled);
-  prefs.end();
-  debugMinerAutoStart = enabled;
+  AutoLaunchSettings::setEnabled(false);
 }
 
 void printAutoLaunchStatus() {
-  const String title = loadAutoLaunchTitle();
-  Serial.print("[debug] autolaunch=");
-  Serial.println(title.length() == 0 ? "(off)" : title);
-  Serial.print("[debug] miner_autostart=");
-  Serial.println(debugMinerAutoStart ? "on" : "off");
+  const AutoLaunchSettings::Config config = AutoLaunchSettings::load();
+  Serial.print("[debug] autolaunch_enabled=");
+  Serial.println(config.enabled ? "on" : "off");
+  Serial.print("[debug] autolaunch_app=");
+  if (config.appTitle.length() == 0) {
+    Serial.println("(none)");
+  } else {
+    Serial.println(config.appTitle);
+  }
+  Serial.print("[debug] autolaunch_autorun=");
+  Serial.println(config.autoRun ? "on" : "off");
 }
 
 void markMenuDirty() {
@@ -351,11 +369,11 @@ void openMenu(MenuView view) {
   markMenuDirty();
 }
 
-void launchApp(App& app, uint32_t nowMs) {
+void launchApp(App& app, uint32_t nowMs, bool fromAutoLaunch = false, bool autoRun = false) {
   activeReturnMenu = currentMenu;
   activeApp = &app;
   if (&app == &femtoMinerApp) {
-    femtoMinerApp.setDebugAutoStart(debugMinerAutoStart);
+    femtoMinerApp.setDebugAutoStart(fromAutoLaunch && autoRun);
   }
   activeApp->begin(nowMs, false, false);
   menuSelectArmed = false;
@@ -365,7 +383,7 @@ void launchApp(App& app, uint32_t nowMs) {
   tft.fillScreen(TFT_BLACK);
 }
 
-bool launchAppByTitle(const String& title, uint32_t nowMs) {
+bool launchAppByTitle(const String& title, uint32_t nowMs, bool fromAutoLaunch = false, bool autoRun = false) {
   App* app = findAppByTitle(title);
   if (app == nullptr) {
     Serial.print("[debug] app not found: ");
@@ -378,7 +396,7 @@ bool launchAppByTitle(const String& title, uint32_t nowMs) {
   }
   Serial.print("[debug] launching ");
   Serial.println(app->appTitle());
-  launchApp(*app, nowMs);
+  launchApp(*app, nowMs, fromAutoLaunch, autoRun);
   return true;
 }
 
@@ -479,16 +497,65 @@ void renderActiveAppIfDue(uint32_t nowMs) {
   nextAppRenderMs = nowMs + interval;
 }
 
-void tryAutoLaunch(uint32_t nowMs) {
-  if (autoLaunchAttempted) return;
+void drawAutoLaunchNotice() {
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+  tft.drawRoundRect(5, 5, SCREEN_WIDTH - 10, SCREEN_HEIGHT - 10, 8, TFT_DARKGREY);
+  drawCenteredText("Autolaunching", 28, 2, TFT_CYAN);
+
+  tft.setTextDatum(TL_DATUM);
+  tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  String title = TDisplayUi::fitText(tft, pendingAutoLaunchTitle, SCREEN_WIDTH - 24);
+  tft.drawString(title, (SCREEN_WIDTH - tft.textWidth(title)) / 2, 62);
+
+  drawCenteredText("B1 cancel", 112, 1, TFT_LIGHTGREY);
+}
+
+bool beginAutoLaunchNotice(uint32_t nowMs) {
+  if (autoLaunchAttempted) return false;
   autoLaunchAttempted = true;
-  if (autoLaunchSuppressed) {
-    Serial.println("[debug] autolaunch suppressed by B2 at boot");
+  const AutoLaunchSettings::Config config = AutoLaunchSettings::load();
+  if (!config.enabled || config.appTitle.length() == 0) return false;
+  pendingAutoLaunchTitle = config.appTitle;
+  pendingAutoLaunchAutoRun = config.autoRun;
+  autoLaunchNoticeActive = true;
+  autoLaunchNoticeDrawn = false;
+  autoLaunchNoticeStartedAtMs = nowMs;
+  Serial.print("[debug] autolaunch notice: ");
+  Serial.println(pendingAutoLaunchTitle);
+  return true;
+}
+
+void updateAutoLaunchNotice(uint32_t nowMs, bool b1, bool b2) {
+  if (!autoLaunchNoticeDrawn) {
+    drawAutoLaunchNotice();
+    autoLaunchNoticeDrawn = true;
+  }
+
+  if (b1) {
+    Serial.println("[debug] autolaunch canceled by B1");
+    autoLaunchNoticeActive = false;
+    pendingAutoLaunchTitle = "";
+    menuInputLockedUntilRelease = true;
+    menuButton1.reset(b1, nowMs);
+    menuButton2.reset(b2, nowMs);
+    markMenuDirty();
+    tft.fillScreen(TFT_BLACK);
     return;
   }
-  const String title = loadAutoLaunchTitle();
-  if (title.length() == 0) return;
-  launchAppByTitle(title, nowMs);
+
+  if (nowMs - autoLaunchNoticeStartedAtMs >= AUTO_LAUNCH_NOTICE_MS) {
+    autoLaunchNoticeActive = false;
+    const String title = pendingAutoLaunchTitle;
+    const bool autoRun = pendingAutoLaunchAutoRun;
+    pendingAutoLaunchTitle = "";
+    launchAppByTitle(title, nowMs, true, autoRun);
+    if (activeApp == nullptr) {
+      markMenuDirty();
+      tft.fillScreen(TFT_BLACK);
+    }
+  }
 }
 
 void handleSerialCommand(String command) {
@@ -499,13 +566,15 @@ void handleSerialCommand(String command) {
     Serial.println("[debug] commands:");
     Serial.println("  auto");
     Serial.println("  auto list");
+    Serial.println("  auto on");
     Serial.println("  auto off");
     Serial.println("  auto <app title>");
+    Serial.println("  autorun on|off");
     Serial.println("  launch <app title>");
     Serial.println("  miner start");
     Serial.println("  miner stop");
     Serial.println("  miner stats");
-    Serial.println("  miner autostart on|off");
+    Serial.println("  miner autostart on|off (alias)");
     return;
   }
 
@@ -519,7 +588,18 @@ void handleSerialCommand(String command) {
   }
   if (command.equalsIgnoreCase("auto off")) {
     clearAutoLaunchTitle();
-    Serial.println("[debug] autolaunch cleared");
+    Serial.println("[debug] autolaunch disabled");
+    return;
+  }
+  if (command.equalsIgnoreCase("auto on")) {
+    AutoLaunchSettings::Config config = AutoLaunchSettings::load();
+    if (config.appTitle.length() == 0) {
+      Serial.println("[debug] no autolaunch app selected");
+      return;
+    }
+    config.enabled = true;
+    AutoLaunchSettings::save(config);
+    Serial.println("[debug] autolaunch enabled");
     return;
   }
   if (startsWithIgnoreCase(command, "auto ")) {
@@ -534,6 +614,17 @@ void handleSerialCommand(String command) {
     saveAutoLaunchTitle(app->appTitle());
     Serial.print("[debug] autolaunch saved: ");
     Serial.println(app->appTitle());
+    return;
+  }
+
+  if (command.equalsIgnoreCase("autorun on")) {
+    AutoLaunchSettings::setAutoRun(true);
+    Serial.println("[debug] autolaunch autorun on");
+    return;
+  }
+  if (command.equalsIgnoreCase("autorun off")) {
+    AutoLaunchSettings::setAutoRun(false);
+    Serial.println("[debug] autolaunch autorun off");
     return;
   }
 
@@ -564,13 +655,13 @@ void handleSerialCommand(String command) {
     return;
   }
   if (command.equalsIgnoreCase("miner autostart on")) {
-    saveDebugMinerAutoStart(true);
-    Serial.println("[debug] miner autostart on");
+    AutoLaunchSettings::setAutoRun(true);
+    Serial.println("[debug] autolaunch autorun on");
     return;
   }
   if (command.equalsIgnoreCase("miner autostart off")) {
-    saveDebugMinerAutoStart(false);
-    Serial.println("[debug] miner autostart off");
+    AutoLaunchSettings::setAutoRun(false);
+    Serial.println("[debug] autolaunch autorun off");
     return;
   }
 
@@ -657,20 +748,14 @@ void setup() {
   tft.init();
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
+  autoLaunchSettingsApp.setLaunchableApps(autoLaunchChoices, AUTO_LAUNCH_CHOICE_COUNT);
+  AutoLaunchSettings::migrateLegacyDebugPrefs();
   const uint32_t nowMs = millis();
   bootStartedAtMs = nowMs;
   menuButton1.reset(isButton1Down(), nowMs);
   menuButton2.reset(isButton2Down(), nowMs);
-  debugMinerAutoStart = loadDebugMinerAutoStart();
-  autoLaunchSuppressed = isButton2Down();
-  const bool hasAutoLaunch = loadAutoLaunchTitle().length() > 0;
   printAutoLaunchStatus();
-  if (hasAutoLaunch && !autoLaunchSuppressed) {
-    bootSplashActive = false;
-    tft.fillScreen(TFT_BLACK);
-  } else {
-    drawBootSplash();
-  }
+  drawBootSplash();
   markMenuDirty();
 }
 
@@ -702,18 +787,24 @@ void loop() {
       menuButton1.reset(false, nowMs);
       menuButton2.reset(false, nowMs);
     }
-    drawMenu();
+    delay(10);
+    return;
+  }
+
+  if (!autoLaunchAttempted && activeApp == nullptr) {
+    if (beginAutoLaunchNotice(nowMs)) {
+      delay(10);
+      return;
+    }
+  }
+
+  if (autoLaunchNoticeActive) {
+    updateAutoLaunchNotice(nowMs, b1, b2);
     delay(10);
     return;
   }
 
   if (activeApp == nullptr) {
-    tryAutoLaunch(nowMs);
-    if (activeApp != nullptr) {
-      renderActiveAppIfDue(nowMs);
-      delay(10);
-      return;
-    }
     updateMenu(nowMs, b1, b2);
     drawMenu();
   } else {

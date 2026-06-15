@@ -1,5 +1,20 @@
 # Release Notes
 
+## v2.0 b69
+
+- Replaced the T-Display debug-only autolaunch preference with a generic `Autolaunch` Settings app.
+- Added persisted T-Display autolaunch fields for enabled/disabled, selected app/game, and generic auto-run behavior.
+- Migrated the previous debug `auto_app` / `auto_miner` preferences into the new `autolaunch` namespace so existing Femto Miner autolaunch settings survive the upgrade.
+- Changed T-Display boot flow so the FemtoDeck splash always appears first, followed by a cancellable `Autolaunching <app>` screen when autolaunch is enabled.
+- Kept serial autolaunch commands as shortcuts, but changed status output to `autolaunch_enabled`, `autolaunch_app`, and `autolaunch_autorun` instead of miner-specific wording.
+
+## v2.0 b68
+
+- Added a second Femto Miner worker on classic ESP32/T-Display: the main miner task keeps the hardware SHA path while a secondary software worker searches a separate nonce range and queues found shares back to the Stratum owner.
+- Kept ESP32-C3 on the single-worker path so the one-core board does not lose UI/WiFi responsiveness to an extra mining task.
+- Tuned T-Display miner task priorities after hardware tests; the stable unpinned worker configuration measured about `355 KH/s`, up from the previous `318-319 KH/s`.
+- Tested pinned software-worker variants and rejected them: core 0 reduced throughput, while core 1 starved UI/serial stats.
+
 ## v2.0 b67
 
 - Added a T-Display debug autolaunch preference so the firmware can boot straight into a named app for serial profiling.
