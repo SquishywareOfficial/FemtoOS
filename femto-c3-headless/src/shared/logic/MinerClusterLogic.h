@@ -55,11 +55,16 @@ constexpr uint8_t MAGIC_0 = 'F';
 constexpr uint8_t MAGIC_1 = 'M';
 constexpr uint8_t PROTOCOL_VERSION = 1;
 constexpr uint8_t MAX_SLAVES = 8;
-constexpr uint32_t DEFAULT_RANGE = 512;
-constexpr uint32_t MIN_RANGE = 256;
-constexpr uint32_t MAX_RANGE = 65536;
+constexpr uint32_t DEFAULT_RANGE = 4096;
+constexpr uint32_t MIN_RANGE = 4096;
+constexpr uint32_t MAX_RANGE = 2000000;
 constexpr uint32_t ASSIGNMENT_TIMEOUT_MS = 12000;
-constexpr uint32_t TARGET_ASSIGNMENT_MS = 750;
+constexpr uint32_t TARGET_ASSIGNMENT_MS = 3000;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+constexpr uint16_t SLAVE_BATCH_NONCES = 4096;
+#else
+constexpr uint16_t SLAVE_BATCH_NONCES = 768;
+#endif
 
 enum class PacketType : uint8_t {
   PairBeacon = 1,
@@ -497,6 +502,110 @@ inline bool hashNonceSoftware(const WorkContext& source, uint32_t nonce, uint8_t
   return nerd_sha256d_baked(work.midstate, work.paddedHeader + 64, work.bake, hash);
 }
 
+#if defined(CONFIG_IDF_TARGET_ESP32)
+inline void shaWaitIdleEsp32() {
+  while (DPORT_REG_READ(SHA_256_BUSY_REG)) {}
+}
+
+inline void shaFillBlockEsp32(const uint32_t* words) {
+  uint32_t* reg = reinterpret_cast<uint32_t*>(SHA_TEXT_BASE);
+  reg[0] = words[0];
+  reg[1] = words[1];
+  reg[2] = words[2];
+  reg[3] = words[3];
+  reg[4] = words[4];
+  reg[5] = words[5];
+  reg[6] = words[6];
+  reg[7] = words[7];
+  reg[8] = words[8];
+  reg[9] = words[9];
+  reg[10] = words[10];
+  reg[11] = words[11];
+  reg[12] = words[12];
+  reg[13] = words[13];
+  reg[14] = words[14];
+  reg[15] = words[15];
+}
+
+inline void shaFillUpperEsp32(const uint32_t* words, uint32_t nonce) {
+  uint32_t* reg = reinterpret_cast<uint32_t*>(SHA_TEXT_BASE);
+  reg[0] = words[0];
+  reg[1] = words[1];
+  reg[2] = words[2];
+  reg[3] = __builtin_bswap32(nonce);
+  reg[4] = 0x80000000;
+  reg[5] = 0x00000000;
+  reg[6] = 0x00000000;
+  reg[7] = 0x00000000;
+  reg[8] = 0x00000000;
+  reg[9] = 0x00000000;
+  reg[10] = 0x00000000;
+  reg[11] = 0x00000000;
+  reg[12] = 0x00000000;
+  reg[13] = 0x00000000;
+  reg[14] = 0x00000000;
+  reg[15] = 0x00000280;
+}
+
+inline void shaFillDoubleEsp32() {
+  uint32_t* reg = reinterpret_cast<uint32_t*>(SHA_TEXT_BASE);
+  reg[8] = 0x80000000;
+  reg[9] = 0x00000000;
+  reg[10] = 0x00000000;
+  reg[11] = 0x00000000;
+  reg[12] = 0x00000000;
+  reg[13] = 0x00000000;
+  reg[14] = 0x00000000;
+  reg[15] = 0x00000100;
+}
+
+inline void storeWord(uint8_t* out, uint8_t index, uint32_t value) {
+  memcpy(out + index * 4, &value, sizeof(value));
+}
+
+inline bool shaReadDigestCandidateEsp32(uint8_t* hash) {
+  DPORT_INTERRUPT_DISABLE();
+  const uint32_t fin = DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 7 * 4);
+  if ((fin & 0xFFFF) != 0) {
+    DPORT_INTERRUPT_RESTORE();
+    return false;
+  }
+  storeWord(hash, 7, __builtin_bswap32(fin));
+  storeWord(hash, 0, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 0 * 4)));
+  storeWord(hash, 1, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 1 * 4)));
+  storeWord(hash, 2, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 2 * 4)));
+  storeWord(hash, 3, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 3 * 4)));
+  storeWord(hash, 4, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 4 * 4)));
+  storeWord(hash, 5, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 5 * 4)));
+  storeWord(hash, 6, __builtin_bswap32(DPORT_SEQUENCE_REG_READ(SHA_TEXT_BASE + 6 * 4)));
+  DPORT_INTERRUPT_RESTORE();
+  return true;
+}
+
+inline bool hashNonceHardwareEsp32Unlocked(const WorkContext& source, uint32_t nonce, uint8_t hash[32]) {
+  shaFillBlockEsp32(source.hwWords);
+  sha_ll_start_block(SHA2_256);
+  shaWaitIdleEsp32();
+  shaFillUpperEsp32(source.hwWords + 16, nonce);
+  sha_ll_continue_block(SHA2_256);
+  shaWaitIdleEsp32();
+  sha_ll_load(SHA2_256);
+  shaWaitIdleEsp32();
+  shaFillDoubleEsp32();
+  sha_ll_start_block(SHA2_256);
+  shaWaitIdleEsp32();
+  sha_ll_load(SHA2_256);
+  return shaReadDigestCandidateEsp32(hash);
+}
+
+inline bool hashNonceHardwareEsp32(const WorkContext& source, uint32_t nonce, uint8_t hash[32]) {
+  esp_sha_lock_engine(SHA2_256);
+  const bool ok = hashNonceHardwareEsp32Unlocked(source, nonce, hash);
+  esp_sha_unlock_engine(SHA2_256);
+  return ok;
+}
+#endif
+
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 inline void transformC3Digest(const uint8_t raw[32], uint8_t out[32], uint8_t mode) {
   if (mode == 0) {
@@ -566,7 +675,11 @@ inline bool hashNonceHardwareC3(const WorkContext& source, uint32_t nonce, uint8
 #endif
 
 inline bool hashNonce(const WorkContext& source, uint32_t nonce, uint8_t hash[32]) {
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
+#if defined(CONFIG_IDF_TARGET_ESP32)
+  if (hashNonceHardwareEsp32(source, nonce, hash)) {
+    return true;
+  }
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
   if (hashNonceHardwareC3(source, nonce, hash)) {
     return true;
   }
@@ -1080,7 +1193,9 @@ private:
       SlaveRecord& slave = slaves_[index];
       slave.lastSeenMs = millis();
       slave.assigned = false;
-      slave.hashrate = static_cast<uint32_t>(packet.hashrate);
+      if (packet.hashrate > 0.0f) {
+        slave.hashrate = static_cast<uint32_t>(packet.hashrate);
+      }
       slave.lastJobSeq = packet.jobSeq;
       if (packet.bestDifficulty > slave.bestDifficulty) slave.bestDifficulty = packet.bestDifficulty;
       strncpy(slave.status, packet.found ? "share" : "done", sizeof(slave.status) - 1);
@@ -1498,6 +1613,9 @@ public:
 
   void begin() {
     startedAtMs_ = millis();
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    stopRequested_ = false;
+#endif
     loadPairing();
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
@@ -1514,9 +1632,15 @@ public:
     }
     setChannel(channel_);
     sendHello();
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    startTask();
+#endif
   }
 
   void stop() {
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    stopTask();
+#endif
     if (activeSlave() == this) activeSlave() = nullptr;
     if (radioStarted_) {
       esp_now_unregister_recv_cb();
@@ -1542,30 +1666,12 @@ public:
   }
 
   void update() {
-    const uint32_t now = millis();
-    const bool masterStale = paired_ && now - lastMasterSeenMs_ > 10000;
-    if (!paired_ || masterStale) {
-      if (now - lastHopMs_ >= 350) {
-        lastHopMs_ = now;
-        channel_ = channel_ >= 13 ? 1 : channel_ + 1;
-        setChannel(channel_);
-      }
-      if (!assignmentActive_) setState(SlaveState::Searching);
-    }
-
-    if (assignmentActive_) {
-      mineChunk();
-    } else if (paired_ && now - lastStatusAtMs_ >= 2000) {
-      lastStatusAtMs_ = now;
-      sendStatus();
-    }
-
-    portENTER_CRITICAL(&mux_);
-    stats_.paired = paired_;
-    stats_.channel = channel_;
-    stats_.uptimeSeconds = (now - startedAtMs_) / 1000;
-    memcpy(stats_.masterMac, masterMac_, 6);
-    portEXIT_CRITICAL(&mux_);
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    if (task_ == nullptr) service();
+    return;
+#else
+    service();
+#endif
   }
 
   SlaveStats stats() {
@@ -1620,6 +1726,74 @@ public:
   }
 
 private:
+#if defined(CONFIG_IDF_TARGET_ESP32)
+  static void taskEntry(void* ctx) {
+    static_cast<SlaveEngine*>(ctx)->runTask();
+  }
+
+  bool startTask() {
+    if (task_ != nullptr) return true;
+    BaseType_t ok = xTaskCreate(taskEntry, "FemtoSlv", 6144, this, 2, &task_);
+    if (ok != pdPASS) {
+      task_ = nullptr;
+      setError("Slave task failed");
+      return false;
+    }
+    return true;
+  }
+
+  void stopTask() {
+    stopRequested_ = true;
+    const uint32_t started = millis();
+    while (task_ != nullptr && millis() - started < 1000) {
+      delay(10);
+    }
+    if (task_ != nullptr) {
+      vTaskDelete(task_);
+      task_ = nullptr;
+    }
+  }
+
+  void runTask() {
+    while (!stopRequested_) {
+      service();
+      if (!assignmentActive_) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+      } else {
+        taskYIELD();
+      }
+    }
+    task_ = nullptr;
+    vTaskDelete(nullptr);
+  }
+#endif
+
+  void service() {
+    const uint32_t now = millis();
+    const bool masterStale = paired_ && now - lastMasterSeenMs_ > 10000;
+    if (!paired_ || masterStale) {
+      if (now - lastHopMs_ >= 350) {
+        lastHopMs_ = now;
+        channel_ = channel_ >= 13 ? 1 : channel_ + 1;
+        setChannel(channel_);
+      }
+      if (!assignmentActive_) setState(SlaveState::Searching);
+    }
+
+    if (assignmentActive_) {
+      mineChunk();
+    } else if (paired_ && now - lastStatusAtMs_ >= 2000) {
+      lastStatusAtMs_ = now;
+      sendStatus();
+    }
+
+    portENTER_CRITICAL(&mux_);
+    stats_.paired = paired_;
+    stats_.channel = channel_;
+    stats_.uptimeSeconds = (now - startedAtMs_) / 1000;
+    memcpy(stats_.masterMac, masterMac_, 6);
+    portEXIT_CRITICAL(&mux_);
+  }
   static void onReceiveStatic(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
     if (activeSlave() != nullptr && info != nullptr) {
       activeSlave()->handleIncoming(info->src_addr, data, len);
@@ -1800,29 +1974,46 @@ private:
   void mineChunk() {
     uint8_t hash[32];
     uint32_t processed = 0;
-    for (uint16_t i = 0; i < 768 && assignmentActive_; i++) {
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    esp_sha_lock_engine(SHA2_256);
+#endif
+    for (uint16_t i = 0; i < SLAVE_BATCH_NONCES && assignmentActive_; i++) {
       const uint32_t offset = assignmentNextNonce_ - assignmentStartNonce_;
       if (offset >= assignmentNonceCount_) {
         assignmentHashes_ += processed;
         assignmentActive_ = false;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+        esp_sha_unlock_engine(SHA2_256);
+#endif
         sendResult(false, 0, 0.0f);
         setState(SlaveState::Paired);
         return;
       }
       const uint32_t nonce = assignmentNextNonce_++;
       processed++;
-      if (hashNonce(currentWork_, nonce, hash)) {
+#if defined(CONFIG_IDF_TARGET_ESP32)
+      const bool hashed = hashNonceHardwareEsp32Unlocked(currentWork_, nonce, hash);
+#else
+      const bool hashed = hashNonce(currentWork_, nonce, hash);
+#endif
+      if (hashed) {
         const float diff = difficultyFromHash(hash);
         if (diff > assignmentBest_) assignmentBest_ = diff;
         if (diff > assignmentPoolDifficulty_) {
           assignmentHashes_ += processed;
           assignmentActive_ = false;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+          esp_sha_unlock_engine(SHA2_256);
+#endif
           sendResult(true, nonce, diff);
           setState(SlaveState::Paired);
           return;
         }
       }
     }
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    esp_sha_unlock_engine(SHA2_256);
+#endif
     assignmentHashes_ += processed;
     const uint32_t elapsed = millis() - assignmentStartedAtMs_;
     if (elapsed > 0) {
@@ -1832,7 +2023,9 @@ private:
       if (assignmentBest_ > stats_.bestDifficulty) stats_.bestDifficulty = assignmentBest_;
       portEXIT_CRITICAL(&mux_);
     }
+#if !defined(CONFIG_IDF_TARGET_ESP32)
     delay(1);
+#endif
   }
 
   void setState(SlaveState state) {
@@ -1876,6 +2069,10 @@ private:
   float assignmentBest_ = 0.0f;
   SlaveStats stats_;
   portMUX_TYPE mux_ = portMUX_INITIALIZER_UNLOCKED;
+#if defined(CONFIG_IDF_TARGET_ESP32)
+  TaskHandle_t task_ = nullptr;
+  volatile bool stopRequested_ = false;
+#endif
 };
 
 }  // namespace MinerCluster

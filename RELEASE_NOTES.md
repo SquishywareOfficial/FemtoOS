@@ -1,5 +1,12 @@
 # Release Notes
 
+## v2.0 b77
+
+- Added T-Display slave mode to the Distributed Miner app, with a role selector before launch.
+- Added native T-Display slave pages for status, work rate, assignment debug data, pairing reset, and exit.
+- Kept T-Display serial cluster commands master-oriented by forcing the app back to master mode before debug start/pair/reset actions.
+- Tuned Distributed Miner nonce assignments so fast slaves receive larger work ranges based on their reported hashrate, reducing ESP-NOW assignment overhead.
+
 ## v2.0 b76
 
 - Changed T-Display City Racer to keep its framebuffer once allocated instead of releasing and reallocating it between runs.

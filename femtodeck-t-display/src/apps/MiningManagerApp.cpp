@@ -52,14 +52,11 @@ MiningManagerApp::MiningManagerApp(uint32_t width, uint32_t height)
     : App("Distributed Miner", width, height), cluster_(new MinerCluster::MasterEngine()) {}
 
 MiningManagerApp::~MiningManagerApp() {
+  stopAll();
   delete cluster_;
 }
 
 bool MiningManagerApp::hasCustomOverlay() const {
-  return true;
-}
-
-bool MiningManagerApp::startsRunningImmediately() const {
   return true;
 }
 
@@ -72,6 +69,7 @@ bool MiningManagerApp::wantsImmediateRender() const {
 }
 
 void MiningManagerApp::debugStartCluster() {
+  switchToMasterForDebug();
   if (!cluster_->running()) {
     cluster_->start(HOSTNAME);
     forceClear();
@@ -80,6 +78,7 @@ void MiningManagerApp::debugStartCluster() {
 }
 
 void MiningManagerApp::debugStopCluster() {
+  switchToMasterForDebug();
   if (cluster_->running()) {
     cluster_->stop();
     forceClear();
@@ -88,6 +87,7 @@ void MiningManagerApp::debugStopCluster() {
 }
 
 void MiningManagerApp::debugStartPairing() {
+  switchToMasterForDebug();
   if (!cluster_->running()) {
     cluster_->start(HOSTNAME);
   }
@@ -97,12 +97,14 @@ void MiningManagerApp::debugStartPairing() {
 }
 
 void MiningManagerApp::debugSetLocalMining(bool enabled) {
+  switchToMasterForDebug();
   cluster_->setLocalMining(enabled);
   forceClear();
   debugPrintStats(enabled ? "local-on" : "local-off");
 }
 
 void MiningManagerApp::debugResetCluster() {
+  switchToMasterForDebug();
   cluster_->resetClusterIdentity();
   forceClear();
   debugPrintStats("cluster-reset");
@@ -112,14 +114,55 @@ void MiningManagerApp::debugPrintStats(const char* reason) {
   printStatsLine(cluster_->stats(), reason);
 }
 
+bool MiningManagerApp::updateStart(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) {
+  (void)deltaMs;
+  if (b1.click) {
+    selectedRole_ = selectedRole_ == Role::Master ? Role::Slave : Role::Master;
+    markDirty();
+  } else if (b2.click || b1.longPress) {
+    startRunning();
+  }
+  return true;
+}
+
 void MiningManagerApp::onAppReset() {
-  page_ = Page::Dashboard;
+  stopAll();
+  activeRole_ = selectedRole_;
+  page_ = 0;
   lastSerialStatsMs_ = 0;
+  if (activeRole_ == Role::Slave) {
+    slave_ = new MinerCluster::SlaveEngine();
+    slave_->begin();
+  }
   forceClear();
 }
 
 void MiningManagerApp::onAppExit() {
-  cluster_->stop();
+  stopAll();
+}
+
+void MiningManagerApp::stopAll() {
+  if (cluster_ != nullptr) {
+    cluster_->stop();
+  }
+  if (slave_ != nullptr) {
+    slave_->stop();
+    delete slave_;
+    slave_ = nullptr;
+  }
+}
+
+void MiningManagerApp::switchToMasterForDebug() {
+  if (activeRole_ != Role::Master) {
+    if (slave_ != nullptr) {
+      slave_->stop();
+      delete slave_;
+      slave_ = nullptr;
+    }
+    activeRole_ = Role::Master;
+    selectedRole_ = Role::Master;
+    page_ = 0;
+  }
 }
 
 void MiningManagerApp::markDirty() {
@@ -134,40 +177,49 @@ void MiningManagerApp::forceClear() {
 void MiningManagerApp::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) {
   (void)deltaMs;
   const uint32_t now = millis();
-  if (cluster_->running() && (lastSerialStatsMs_ == 0 || now - lastSerialStatsMs_ >= 2000)) {
+  if (slave_ != nullptr) {
+    slave_->update();
+  }
+
+  if (activeRole_ == Role::Master && cluster_->running() && (lastSerialStatsMs_ == 0 || now - lastSerialStatsMs_ >= 2000)) {
     lastSerialStatsMs_ = now;
     printStatsLine(cluster_->stats(), "tick");
   }
 
   if (b2.click) {
-    page_ = static_cast<Page>((static_cast<uint8_t>(page_) + 1) % static_cast<uint8_t>(Page::Count));
+    const uint8_t count = activeRole_ == Role::Master
+                              ? static_cast<uint8_t>(MasterPage::Count)
+                              : static_cast<uint8_t>(SlavePage::Count);
+    page_ = (page_ + 1) % count;
     forceClear();
     return;
   }
 
-  if (b1.click) {
-    if (page_ == Page::Dashboard) {
+  if (activeRole_ == Role::Master && b1.click) {
+    const MasterPage page = static_cast<MasterPage>(page_);
+    if (page == MasterPage::Dashboard) {
       if (cluster_->running()) cluster_->stop();
       else cluster_->start(HOSTNAME);
       forceClear();
-    } else if (page_ == Page::Controls) {
+    } else if (page == MasterPage::Controls) {
       cluster_->setLocalMining(!cluster_->localMiningEnabled());
       forceClear();
-    } else if (page_ == Page::Pairing) {
+    } else if (page == MasterPage::Pairing) {
       if (!cluster_->running()) cluster_->start(HOSTNAME);
       cluster_->startPairing();
       forceClear();
-    } else if (page_ == Page::Reset) {
+    } else if (page == MasterPage::Reset) {
       cluster_->resetClusterIdentity();
       forceClear();
     }
     return;
   }
 
-  if (b1.longPress) {
-    if (page_ == Page::Reset) {
+  if (activeRole_ == Role::Master && b1.longPress) {
+    const MasterPage page = static_cast<MasterPage>(page_);
+    if (page == MasterPage::Reset) {
       cluster_->resetClusterIdentity();
-    } else if (page_ == Page::Controls) {
+    } else if (page == MasterPage::Controls) {
       if (cluster_->running()) cluster_->stop();
       else cluster_->start(HOSTNAME);
     } else {
@@ -175,6 +227,14 @@ void MiningManagerApp::updateRunning(uint32_t deltaMs, const ButtonInput& b1, co
       cluster_->startPairing();
     }
     forceClear();
+  } else if (activeRole_ == Role::Slave && b1.longPress) {
+    const SlavePage page = static_cast<SlavePage>(page_);
+    if (page == SlavePage::Clear && slave_ != nullptr) {
+      slave_->clearPairing();
+      forceClear();
+    } else if (page == SlavePage::Exit) {
+      requestExitToMenu();
+    }
   }
 }
 
@@ -211,13 +271,24 @@ void MiningManagerApp::printStatsLine(const MinerCluster::MasterStats& stats, co
 }
 
 const char* MiningManagerApp::pageTitle() const {
-  switch (page_) {
-    case Page::Slaves: return "Cluster Slaves";
-    case Page::Pool: return "Cluster Pool";
-    case Page::Pairing: return "Pair Slaves";
-    case Page::Controls: return "Cluster Control";
-    case Page::Reset: return "Reset Cluster";
-    case Page::Dashboard:
+  if (activeRole_ == Role::Slave) {
+    switch (static_cast<SlavePage>(page_)) {
+      case SlavePage::Work: return "Slave Work";
+      case SlavePage::Debug: return "Slave Debug";
+      case SlavePage::Clear: return "Clear Pairing";
+      case SlavePage::Exit: return "Exit Slave";
+      case SlavePage::Status:
+      default: return "Miner Slave";
+    }
+  }
+
+  switch (static_cast<MasterPage>(page_)) {
+    case MasterPage::Slaves: return "Cluster Slaves";
+    case MasterPage::Pool: return "Cluster Pool";
+    case MasterPage::Pairing: return "Pair Slaves";
+    case MasterPage::Controls: return "Cluster Control";
+    case MasterPage::Reset: return "Reset Cluster";
+    case MasterPage::Dashboard:
     default: return "Distributed Miner";
   }
 }
@@ -234,6 +305,17 @@ uint16_t MiningManagerApp::stateColor(MinerCluster::MasterState state) const {
     case MinerCluster::MasterState::Error: return TFT_RED;
     default: return TFT_YELLOW;
   }
+}
+
+uint16_t MiningManagerApp::slaveStateColor(MinerCluster::SlaveState state) const {
+  switch (state) {
+    case MinerCluster::SlaveState::Mining: return TFT_GREEN;
+    case MinerCluster::SlaveState::Paired: return TFT_CYAN;
+    case MinerCluster::SlaveState::Pairing: return TFT_YELLOW;
+    case MinerCluster::SlaveState::Searching: return TFT_ORANGE;
+    case MinerCluster::SlaveState::Error: return TFT_RED;
+  }
+  return TFT_LIGHTGREY;
 }
 
 template <typename Canvas>
@@ -321,29 +403,102 @@ void MiningManagerApp::drawReset(Canvas& canvas, const MinerCluster::MasterStats
 }
 
 template <typename Canvas>
+void MiningManagerApp::drawSlaveStatus(Canvas& canvas, const MinerCluster::SlaveStats& stats) {
+  const uint16_t color = slaveStateColor(stats.state);
+  TDisplayUi::header(canvas, pageTitle(), color, MinerCluster::slaveStateLabel(stats.state));
+  TDisplayUi::largeValue(canvas, stats.paired ? "Linked" : "Seeking", 39, color);
+  canvas.setTextSize(1);
+  canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  canvas.drawString(String("Channel ") + stats.channel, 16, 84);
+  canvas.drawString(String("Master ") + (stats.paired ? MinerCluster::macSuffix(stats.masterMac) : String("---")), 16, 99);
+  TDisplayUi::footer(canvas, "B2 page  B2 hold exit");
+}
+
+template <typename Canvas>
+void MiningManagerApp::drawSlaveWork(Canvas& canvas, const MinerCluster::SlaveStats& stats) {
+  const uint16_t color = slaveStateColor(stats.state);
+  TDisplayUi::header(canvas, pageTitle(), color);
+  TDisplayUi::largeValue(canvas, rateLabel(stats.hashrate), 39, color);
+  canvas.setTextSize(1);
+  canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  canvas.drawString(String("Jobs ") + stats.jobs + "  Done " + stats.completed, 16, 84);
+  canvas.drawString(String("Total ") + static_cast<unsigned long>(stats.totalHashes / 1000ULL) + " KH", 16, 99);
+  TDisplayUi::footer(canvas, "B2 page");
+}
+
+template <typename Canvas>
+void MiningManagerApp::drawSlaveDebug(Canvas& canvas, const MinerCluster::SlaveStats& stats) {
+  TDisplayUi::header(canvas, pageTitle(), TFT_YELLOW, MinerCluster::slaveStateLabel(stats.state));
+  drawFit(canvas, String("Assign ") + stats.currentAssignmentId + "  Nonces " + stats.assignmentSize, 14, 36, 210, 1, TFT_CYAN);
+  drawFit(canvas, String("Done ") + stats.assignmentDone + "  Result " + stats.lastResultHashes, 14, 54, 210, 1, TFT_WHITE);
+  drawFit(canvas, String("Last result ") + stats.lastResultMs + " ms", 14, 72, 210, 1, TFT_LIGHTGREY);
+  drawFit(canvas, String("Best diff ") + String(stats.bestDifficulty, 6), 14, 90, 210, 1, TFT_GREEN);
+  TDisplayUi::footer(canvas, "B2 page");
+}
+
+template <typename Canvas>
+void MiningManagerApp::drawSlaveClear(Canvas& canvas, const MinerCluster::SlaveStats& stats) {
+  TDisplayUi::header(canvas, pageTitle(), TFT_ORANGE, MinerCluster::slaveStateLabel(stats.state));
+  TDisplayUi::centered(canvas, stats.paired ? "Saved Master" : "No Master", 38, 2, stats.paired ? TFT_CYAN : TFT_LIGHTGREY);
+  TDisplayUi::centered(canvas, stats.paired ? MinerCluster::macSuffix(stats.masterMac) : "Seeking pair", 66, 2, TFT_WHITE);
+  TDisplayUi::centered(canvas, "Hold B1 to forget", 96, 1, TFT_LIGHTGREY);
+  TDisplayUi::footer(canvas, "B1 hold clear  B2 page");
+}
+
+template <typename Canvas>
+void MiningManagerApp::drawSlaveExit(Canvas& canvas, const MinerCluster::SlaveStats& stats) {
+  TDisplayUi::header(canvas, pageTitle(), TFT_RED, MinerCluster::slaveStateLabel(stats.state));
+  TDisplayUi::centered(canvas, "Exit", 42, 3, TFT_WHITE);
+  TDisplayUi::centered(canvas, "Hold B1 or B2", 82, 1, TFT_LIGHTGREY);
+  TDisplayUi::footer(canvas, "B1 hold exit  B2 hold exit");
+}
+
+template <typename Canvas>
 void MiningManagerApp::drawFrame(Canvas& canvas) {
   TDisplayUi::clear(canvas);
-  const MinerCluster::MasterStats stats = cluster_->stats();
-  switch (page_) {
-    case Page::Slaves:
-      drawSlaves(canvas);
-      break;
-    case Page::Pool:
-      drawPool(canvas, stats);
-      break;
-    case Page::Pairing:
-      drawPairing(canvas, stats);
-      break;
-    case Page::Controls:
-      drawControls(canvas, stats);
-      break;
-    case Page::Reset:
-      drawReset(canvas, stats);
-      break;
-    case Page::Dashboard:
-    default:
-      drawDashboard(canvas, stats);
-      break;
+  if (activeRole_ == Role::Slave) {
+    const MinerCluster::SlaveStats stats = slave_ != nullptr ? slave_->stats() : MinerCluster::SlaveStats();
+    switch (static_cast<SlavePage>(page_)) {
+      case SlavePage::Work:
+        drawSlaveWork(canvas, stats);
+        break;
+      case SlavePage::Debug:
+        drawSlaveDebug(canvas, stats);
+        break;
+      case SlavePage::Clear:
+        drawSlaveClear(canvas, stats);
+        break;
+      case SlavePage::Exit:
+        drawSlaveExit(canvas, stats);
+        break;
+      case SlavePage::Status:
+      default:
+        drawSlaveStatus(canvas, stats);
+        break;
+    }
+  } else {
+    const MinerCluster::MasterStats stats = cluster_->stats();
+    switch (static_cast<MasterPage>(page_)) {
+      case MasterPage::Slaves:
+        drawSlaves(canvas);
+        break;
+      case MasterPage::Pool:
+        drawPool(canvas, stats);
+        break;
+      case MasterPage::Pairing:
+        drawPairing(canvas, stats);
+        break;
+      case MasterPage::Controls:
+        drawControls(canvas, stats);
+        break;
+      case MasterPage::Reset:
+        drawReset(canvas, stats);
+        break;
+      case MasterPage::Dashboard:
+      default:
+        drawDashboard(canvas, stats);
+        break;
+    }
   }
   dirty_ = false;
 }
@@ -359,26 +514,29 @@ void MiningManagerApp::drawRunning(TFT_eSPI& tft) {
 
 void MiningManagerApp::drawStart(TFT_eSPI& tft) {
   tft.setRotation(1);
-  TDisplayUi::clear(tft);
-  if (showStartPromptPage()) {
-    TDisplayUi::header(tft, "Distributed Miner", TFT_ORANGE);
-    TDisplayUi::centered(tft, "Press", 50, 3, TFT_WHITE);
-    TDisplayUi::centered(tft, "to Start", 80, 2, TFT_LIGHTGREY);
-    TDisplayUi::footer(tft, "B1 start");
-  } else if (showStartScorePage()) {
-    TDisplayUi::header(tft, "Cluster Mining", TFT_YELLOW);
-    TDisplayUi::centered(tft, "T-Display master", 49, 2, TFT_CYAN);
-    TDisplayUi::centered(tft, "C3 headless slaves", 78, 1, TFT_LIGHTGREY);
-    TDisplayUi::footer(tft, "B1 start");
-  } else {
-    TDisplayUi::header(tft, "Distributed Miner", TFT_ORANGE);
-    tft.drawCircle(90, 66, 20, TFT_ORANGE);
-    tft.drawString("M", 84, 57, 4);
-    for (int i = 0; i < 3; i++) {
-      const int x = 140 + i * 22;
-      tft.drawRect(x, 52, 16, 22, TFT_CYAN);
-      tft.drawFastHLine(x + 3, 69, 10, TFT_GREEN);
+  drawBuffered(tft, width, height, [this](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    if (showStartPromptPage()) {
+      TDisplayUi::header(canvas, "Distributed Miner", TFT_ORANGE);
+      TDisplayUi::centered(canvas, selectedRole_ == Role::Master ? "Master" : "Slave", 46, 3, TFT_WHITE);
+      TDisplayUi::centered(canvas, "B1 role  B2 start", 87, 1, TFT_LIGHTGREY);
+      TDisplayUi::footer(canvas, "B1 role  B2 start");
+    } else if (showStartScorePage()) {
+      TDisplayUi::header(canvas, "Cluster Mining", TFT_YELLOW);
+      TDisplayUi::centered(canvas, "Master assigns work", 47, 2, TFT_CYAN);
+      TDisplayUi::centered(canvas, "Slave joins a cluster", 78, 1, TFT_LIGHTGREY);
+      TDisplayUi::footer(canvas, selectedRole_ == Role::Master ? "Selected: Master" : "Selected: Slave");
+    } else {
+      TDisplayUi::header(canvas, "Distributed Miner", TFT_ORANGE);
+      canvas.drawCircle(90, 66, 20, TFT_ORANGE);
+      canvas.drawString(selectedRole_ == Role::Master ? "M" : "S", 84, 57, 4);
+      for (int i = 0; i < 3; i++) {
+        const int x = 140 + i * 22;
+        canvas.drawRect(x, 52, 16, 22, TFT_CYAN);
+        canvas.drawFastHLine(x + 3, 69, 10, TFT_GREEN);
+      }
+      TDisplayUi::footer(canvas, "B1 role  B2 start");
     }
-    TDisplayUi::footer(tft, "B1 start");
-  }
+  });
+  dirty_ = false;
 }

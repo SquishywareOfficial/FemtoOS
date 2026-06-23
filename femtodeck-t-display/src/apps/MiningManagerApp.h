@@ -6,8 +6,11 @@ class TFT_eSPI;
 
 namespace MinerCluster {
 class MasterEngine;
+class SlaveEngine;
 struct MasterStats;
+struct SlaveStats;
 enum class MasterState : uint8_t;
+enum class SlaveState : uint8_t;
 }
 
 class MiningManagerApp : public App {
@@ -27,7 +30,7 @@ public:
   void debugPrintStats(const char* reason = "debug");
 
 protected:
-  bool startsRunningImmediately() const override;
+  bool updateStart(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) override;
   void onAppReset() override;
   void onAppExit() override;
   void updateRunning(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) override;
@@ -35,7 +38,12 @@ protected:
   void drawStart(TFT_eSPI& tft) override;
 
 private:
-  enum class Page : uint8_t {
+  enum class Role : uint8_t {
+    Master,
+    Slave
+  };
+
+  enum class MasterPage : uint8_t {
     Dashboard,
     Slaves,
     Pool,
@@ -45,11 +53,23 @@ private:
     Count
   };
 
+  enum class SlavePage : uint8_t {
+    Status,
+    Work,
+    Debug,
+    Clear,
+    Exit,
+    Count
+  };
+
+  void stopAll();
+  void switchToMasterForDebug();
   void markDirty();
   void forceClear();
   void printStatsLine(const MinerCluster::MasterStats& stats, const char* reason);
   const char* pageTitle() const;
   uint16_t stateColor(MinerCluster::MasterState state) const;
+  uint16_t slaveStateColor(MinerCluster::SlaveState state) const;
 
   template <typename Canvas>
   void drawFrame(Canvas& canvas);
@@ -65,9 +85,22 @@ private:
   void drawControls(Canvas& canvas, const MinerCluster::MasterStats& stats);
   template <typename Canvas>
   void drawReset(Canvas& canvas, const MinerCluster::MasterStats& stats);
+  template <typename Canvas>
+  void drawSlaveStatus(Canvas& canvas, const MinerCluster::SlaveStats& stats);
+  template <typename Canvas>
+  void drawSlaveWork(Canvas& canvas, const MinerCluster::SlaveStats& stats);
+  template <typename Canvas>
+  void drawSlaveDebug(Canvas& canvas, const MinerCluster::SlaveStats& stats);
+  template <typename Canvas>
+  void drawSlaveClear(Canvas& canvas, const MinerCluster::SlaveStats& stats);
+  template <typename Canvas>
+  void drawSlaveExit(Canvas& canvas, const MinerCluster::SlaveStats& stats);
 
   MinerCluster::MasterEngine* cluster_;
-  Page page_ = Page::Dashboard;
+  MinerCluster::SlaveEngine* slave_ = nullptr;
+  Role selectedRole_ = Role::Master;
+  Role activeRole_ = Role::Master;
+  uint8_t page_ = 0;
   bool dirty_ = true;
   bool forceScreenClear_ = true;
   uint32_t lastSerialStatsMs_ = 0;
