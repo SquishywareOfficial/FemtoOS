@@ -1,5 +1,6 @@
 #include "FemtoMinerApp.h"
 
+#include <Preferences.h>
 #include <U8g2lib.h>
 #include <WiFi.h>
 #include <esp_wifi.h>
@@ -8,7 +9,9 @@ namespace {
 constexpr uint16_t DNS_PORT = 53;
 constexpr uint8_t AP_CHANNEL = 6;
 constexpr uint16_t PORTAL_LAUNCH_NOTICE_MS = 250;
+constexpr uint32_t BEST_SAVE_INTERVAL_MS = 60000;
 constexpr const char* HOSTNAME = "FemtoDeck-C3";
+constexpr const char* STATS_PREF_NS = "miner_stats";
 const IPAddress AP_IP(192, 168, 4, 1);
 const IPAddress AP_GATEWAY(192, 168, 4, 1);
 const IPAddress AP_SUBNET(255, 255, 255, 0);
@@ -19,6 +22,10 @@ FemtoMinerApp::FemtoMinerApp(uint32_t width, uint32_t height, uint32_t left)
 
 bool FemtoMinerApp::hasCustomOverlay() const {
   return true;
+}
+
+uint16_t FemtoMinerApp::runningRenderIntervalMs() const {
+  return mode_ == Mode::Portal ? 500 : 1000;
 }
 
 bool FemtoMinerApp::startsRunningImmediately() const {
@@ -32,15 +39,19 @@ void FemtoMinerApp::onAppReset() {
   portalLaunchPending_ = false;
   modeStartedAtMs_ = millis();
   settings_.load();
+  loadBestDifficulty();
   stopPortal();
+  lastBestSaveMs_ = millis();
 }
 
 void FemtoMinerApp::onAppExit() {
+  persistBestDifficulty(true);
   stopPortal();
   miner_.stop();
 }
 
 void FemtoMinerApp::launchPortal() {
+  persistBestDifficulty(true);
   miner_.stop();
   mode_ = Mode::StartingPortal;
   portalLaunchPending_ = true;
@@ -164,6 +175,33 @@ void FemtoMinerApp::showMessage(const char* message) {
   modeStartedAtMs_ = millis();
 }
 
+void FemtoMinerApp::loadBestDifficulty() {
+  Preferences prefs;
+  prefs.begin(STATS_PREF_NS, true);
+  lifetimeBestDifficulty_ = prefs.getDouble("bestdiff", 0.0);
+  prefs.end();
+  savedBestDifficulty_ = lifetimeBestDifficulty_;
+}
+
+void FemtoMinerApp::saveBestDifficulty() {
+  Preferences prefs;
+  prefs.begin(STATS_PREF_NS, false);
+  prefs.putDouble("bestdiff", lifetimeBestDifficulty_);
+  prefs.end();
+  savedBestDifficulty_ = lifetimeBestDifficulty_;
+  lastBestSaveMs_ = millis();
+}
+
+void FemtoMinerApp::persistBestDifficulty(bool force) {
+  const MinerLogic::Stats stats = miner_.stats();
+  if (stats.bestDifficulty > lifetimeBestDifficulty_) {
+    lifetimeBestDifficulty_ = stats.bestDifficulty;
+  }
+  if (force || (lifetimeBestDifficulty_ > savedBestDifficulty_ && millis() - lastBestSaveMs_ >= BEST_SAVE_INTERVAL_MS)) {
+    saveBestDifficulty();
+  }
+}
+
 void FemtoMinerApp::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
   (void)deltaMs;
   const uint32_t now = millis();
@@ -189,6 +227,10 @@ void FemtoMinerApp::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
     return;
   }
 
+  if (miner_.running()) {
+    persistBestDifficulty(false);
+  }
+
   if (input.click) {
     page_ = (page_ + 1) % 5;
     return;
@@ -196,7 +238,10 @@ void FemtoMinerApp::updateRunning(uint32_t deltaMs, const ButtonInput& input) {
 
   if (input.longPress) {
     if (page_ == 0) {
-      if (miner_.running()) miner_.stop();
+      if (miner_.running()) {
+        persistBestDifficulty(true);
+        miner_.stop();
+      }
       else miner_.start(HOSTNAME);
     } else if (page_ == 2) {
       launchPortal();
@@ -245,6 +290,7 @@ void FemtoMinerApp::drawRunning(U8G2& u8g2) {
   }
 
   const MinerLogic::Stats stats = miner_.stats();
+  const double bestDifficulty = stats.bestDifficulty > lifetimeBestDifficulty_ ? stats.bestDifficulty : lifetimeBestDifficulty_;
   if (page_ == 0) {
     drawFit(u8g2, left_ + 4, 18, MinerLogic::stateLabel(stats.state));
     char rate[18];
@@ -258,7 +304,7 @@ void FemtoMinerApp::drawRunning(U8G2& u8g2) {
     drawFit(u8g2, left_ + 4, 18, buf);
     snprintf(buf, sizeof(buf), "OK %lu R %lu", static_cast<unsigned long>(stats.accepted), static_cast<unsigned long>(stats.rejected));
     drawFit(u8g2, left_ + 4, 28, buf);
-    u8g2.drawStr(left_ + 4, 38, "Tap next");
+    drawFit(u8g2, left_ + 4, 38, (String("Best ") + String(bestDifficulty, 3)).c_str());
   } else if (page_ == 2) {
     settings_.load();
     const MinerLogic::Config& config = settings_.config();

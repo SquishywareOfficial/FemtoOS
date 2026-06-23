@@ -1,5 +1,57 @@
 # Release Notes
 
+## v2.0 b76
+
+- Changed T-Display City Racer to keep its framebuffer once allocated instead of releasing and reallocating it between runs.
+- Added a 4-bit full-screen sprite fallback for City Racer so it still avoids direct TFT drawing if the 8-bit framebuffer cannot be allocated.
+- Removed redundant per-frame sprite clearing in City Racer and added serial diagnostics showing the sprite depth in use.
+- Added automatic Femto Miner retry/backoff after WiFi, pool connection, subscribe, or pool disconnect failures so transient errors recover without manual restart.
+- Fixed Distributed Miner slave pairing by refreshing the ESP-NOW master peer when the slave hops to the master's WiFi channel, allowing the master to receive C3 hello/status packets and assign work.
+- Changed the T-Display `cluster pair` debug command to start the cluster engine before opening pairing, avoiding an idle `channel=0` pairing state.
+- Updated the headless C3 miner LED behavior for active-low GPIO8 boards and documented the LED states, BOOT pairing reset, and serial status output.
+
+## v2.0 b75
+
+- Fixed T-Display City Racer falling back to tearing-prone direct TFT drawing after a one-time sprite allocation failure.
+- Changed City Racer to retry its 8-bit sprite framebuffer, clear the sprite before each frame, and release the sprite when leaving the app.
+
+## v2.0 b74
+
+- Fixed T-Display Mining Manager page rendering so dashboard, slave list, pool, pairing, and control pages clear through the same sprite-backed pattern as Femto Miner.
+- Added immediate redraw and forced clear handling to Mining Manager page/action changes to remove stale text between pages.
+- Clarified the Mining Manager pairing screen so it shows when pairing is requested but the ESP-NOW radio is still waiting for WiFi/radio startup.
+
+## v2.0 b73
+
+- Clarified T-Display Femto Miner dashboard and Shares page wording so pool jobs are shown separately from submitted/accepted/rejected shares.
+- Forced share counters to render explicit zero values, avoiding the impression that received pool jobs should each have an OK/rejected status.
+
+## v2.0 b72
+
+- Changed the T-Display Femto Miner BTC price flow so it automatically tries to fetch a cached price when entering the BTC page.
+- Changed T-Display Femto Miner start/autostart to attempt a BTC price fetch before starting the CPU-intensive mining workers.
+- Added CPU temperature to the T-Display Femto Miner Session page and optional serial miner logs.
+- Tuned T-Display Femto Miner workers for better button responsiveness while mining by reducing nonce batch sizes and lowering worker priorities.
+- Hardened T-Display Femto Miner rendering so the framebuffer retries allocation, clears before each page draw, and autostart mining waits until after the first UI frame.
+
+## v2.0 b71
+
+- Expanded the T-Display Femto Miner into multiple status pages for dashboard rate, shares/jobs, session totals, lifetime totals, pool state, BTC price lookup, setup, and reset.
+- Added persisted T-Display miner lifetime totals for hashes, mining duration, jobs, submitted shares, accepted shares, and rejected shares.
+- Added a manual BTC price lookup page using the public mempool.space prices endpoint when WiFi is connected.
+- Improved T-Display Femto Miner page transitions by adding an immediate-render hook and forcing a panel clear on miner mode/page changes.
+- Changed T-Display miner serial hashrate logging to opt-in with `miner logs on|off`; `miner stats` remains available for manual snapshots.
+- Added `Miner Stats` to the T-Display Save Manager so persisted miner totals can be cleared separately from wallet/pool settings.
+
+## v2.0 b70
+
+- Added a T-Display **Mining Manager** utility for ESP-NOW cluster mining, separate from the existing solo Femto Miner app.
+- Added shared cluster protocol and mining logic for master beacons, pairing, slave status, nonce-range assignments, work results, local master mining, and pool share submission.
+- Added a generic `femto-c3-headless` ESP32-C3 sketch; its first role is a no-display Miner Slave with GPIO8 LED status and BOOT long-hold pairing reset.
+- Added a persisted cluster `Local Mining` setting so the T-Display master can mine locally or act mostly as a coordination node during testing.
+- Added `cluster start`, `cluster stop`, `cluster stats`, `cluster pair`, and `cluster local on|off` serial debug commands.
+- Added the headless C3 build to CI artifacts and the browser installer manifest.
+
 ## v2.0 b69
 
 - Replaced the T-Display debug-only autolaunch preference with a generic `Autolaunch` Settings app.

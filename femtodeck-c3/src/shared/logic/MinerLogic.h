@@ -25,6 +25,10 @@
 #include <soc/hwcrypto_reg.h>
 #endif
 
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+#include <sha/sha_parallel_engine.h>
+#endif
+
 namespace MinerLogic {
 
 constexpr const char* PREF_NS = "miner";
@@ -34,11 +38,20 @@ constexpr const char* DEFAULT_POOL_PASS = "x";
 constexpr const char* DEFAULT_WALLET = "bc1qfreyhgyjj03pk60jdpym2tmcx780jmsgcvj8gl";
 constexpr const char* SETUP_AP_SSID = "FemtoMiner Setup";
 constexpr const char* SETUP_AP_PASS = "femtominer";
+constexpr uint32_t RETRY_BACKOFF_INITIAL_MS = 5000;
+constexpr uint32_t RETRY_BACKOFF_MAX_MS = 300000;
 #if defined(CONFIG_IDF_TARGET_ESP32)
 constexpr UBaseType_t MINER_TASK_PRIORITY = 3;
 constexpr UBaseType_t SOFTWARE_MINER_TASK_PRIORITY = 2;
+constexpr uint16_t HARDWARE_BATCH_NONCES = 4096;
+constexpr uint16_t SOFTWARE_BATCH_NONCES = 4096;
+constexpr uint8_t MAIN_MINER_DELAY_INTERVAL = 4;
+constexpr uint8_t SOFTWARE_MINER_DELAY_INTERVAL = 8;
 #else
 constexpr UBaseType_t MINER_TASK_PRIORITY = 1;
+constexpr uint16_t SOFTWARE_BATCH_NONCES = 4096;
+constexpr uint8_t MAIN_MINER_DELAY_INTERVAL = 1;
+constexpr uint8_t SOFTWARE_MINER_DELAY_INTERVAL = 1;
 #endif
 
 enum class State : uint8_t {
@@ -72,6 +85,8 @@ struct Stats {
   double bestDifficulty = 0.0;
   double poolDifficulty = 0.00015;
   uint32_t uptimeSeconds = 0;
+  uint32_t retryCount = 0;
+  uint32_t retryInSeconds = 0;
   char lastError[72] = "";
   char ssid[33] = "";
 };
@@ -283,10 +298,22 @@ private:
   }
 
   void run() {
-    runWorker();
+    uint32_t retryCount = 0;
+    while (!stopRequested_) {
+      const bool cleanStop = runWorker();
 #if defined(CONFIG_IDF_TARGET_ESP32)
-    stopSoftwareWorker();
+      stopSoftwareWorker();
 #endif
+      client_.stop();
+      WiFi.disconnect(false, false);
+
+      if (stopRequested_ || cleanStop) break;
+
+      retryCount++;
+      const uint32_t backoffMs = retryBackoffMs(retryCount);
+      waitRetry(backoffMs, retryCount);
+    }
+
     client_.stop();
     WiFi.disconnect(false, false);
     WiFi.mode(WIFI_OFF);
@@ -294,9 +321,9 @@ private:
     vTaskDelete(nullptr);
   }
 
-  void runWorker() {
-    if (!connectWifi()) return;
-    if (!connectPool()) return;
+  bool runWorker() {
+    if (!connectWifi()) return stopRequested_;
+    if (!connectPool()) return stopRequested_;
 
     Subscribe sub;
     Work work;
@@ -304,6 +331,7 @@ private:
     uint32_t requestId = 1;
     uint32_t lastRateAt = millis();
     uint64_t lastRateHashes = 0;
+    uint8_t mainDelayCounter = 0;
 
     setState(State::Subscribing);
     sendSubscribe(requestId++);
@@ -319,7 +347,7 @@ private:
     }
     if (!subscribed) {
       setError("Subscribe timeout");
-      return;
+      return false;
     }
 
     sendAuth(requestId++);
@@ -333,7 +361,7 @@ private:
     while (!stopRequested_) {
       if (!client_.connected()) {
         setError("Pool disconnected");
-        return;
+        return false;
       }
 
       while (client_.available()) {
@@ -355,7 +383,36 @@ private:
       drainSoftwareShares(work, poolDifficulty, requestId);
 #endif
       updateRate(lastRateAt, lastRateHashes);
-      vTaskDelay(1);
+      mainDelayCounter++;
+      if (mainDelayCounter >= MAIN_MINER_DELAY_INTERVAL) {
+        mainDelayCounter = 0;
+        vTaskDelay(1);
+      }
+    }
+    return true;
+  }
+
+  static uint32_t retryBackoffMs(uint32_t retryCount) {
+    uint32_t delayMs = RETRY_BACKOFF_INITIAL_MS;
+    const uint8_t shifts = retryCount > 1 ? static_cast<uint8_t>(retryCount - 1) : 0;
+    for (uint8_t i = 0; i < shifts && delayMs < RETRY_BACKOFF_MAX_MS; i++) {
+      delayMs *= 2;
+      if (delayMs > RETRY_BACKOFF_MAX_MS) {
+        delayMs = RETRY_BACKOFF_MAX_MS;
+        break;
+      }
+    }
+    return delayMs;
+  }
+
+  void waitRetry(uint32_t delayMs, uint32_t retryCount) {
+    const uint32_t started = millis();
+    while (!stopRequested_) {
+      const uint32_t elapsed = millis() - started;
+      if (elapsed >= delayMs) break;
+      const uint32_t remaining = delayMs - elapsed;
+      setRetry(retryCount, (remaining + 999) / 1000);
+      delay(250);
     }
   }
 
@@ -389,7 +446,6 @@ private:
     setState(State::ConnectingPool);
     if (!client_.connect(config_.poolHost.c_str(), config_.poolPort)) {
       setError("Pool connect failed");
-      setState(State::PoolFailed);
       return false;
     }
     return true;
@@ -632,6 +688,7 @@ private:
     double localDifficulty = 0.0;
     uint32_t localGeneration = 0;
     bool haveWork = false;
+    uint8_t delayCounter = 0;
 
     while (!stopRequested_ && !softwareStopRequested_) {
       if (workerMutex_ != nullptr && xSemaphoreTake(workerMutex_, pdMS_TO_TICKS(10)) == pdTRUE) {
@@ -652,7 +709,11 @@ private:
       }
 
       mineBatchSoftwareWorker(localWork, localDifficulty, localGeneration);
-      vTaskDelay(1);
+      delayCounter++;
+      if (delayCounter >= SOFTWARE_MINER_DELAY_INTERVAL) {
+        delayCounter = 0;
+        vTaskDelay(1);
+      }
     }
 
     softwareTask_ = nullptr;
@@ -667,11 +728,11 @@ private:
     uint32_t processed = 0;
     double localBest = 0.0;
 
-    for (uint16_t i = 0; i < 4096 && !stopRequested_ && !softwareStopRequested_; i++) {
+    for (uint16_t i = 0; i < SOFTWARE_BATCH_NONCES && !stopRequested_ && !softwareStopRequested_; i++) {
       if ((i & 0xFF) == 0 && generation != workerGeneration_) break;
       const uint32_t nonce = work.nextNonce++;
-      memcpy(work.paddedHeader + 76, &nonce, sizeof(nonce));
       processed++;
+      memcpy(work.paddedHeader + 76, &nonce, sizeof(nonce));
       if (nerd_sha256d_baked(work.midstate, work.paddedHeader + 64, work.bake, hash)) {
         const double diff = difficultyFromHash(hash);
         if (diff > localBest) localBest = diff;
@@ -693,6 +754,89 @@ private:
       xQueueSend(shareQueue_, &share, 0);
       noteBest(foundDiff);
     }
+  }
+
+  static bool hashNonceSoftware(const Work& source, uint32_t nonce, uint8_t hash[32]) {
+    Work work = source;
+    memcpy(work.paddedHeader + 76, &nonce, sizeof(nonce));
+    return nerd_sha256d_baked(work.midstate, work.paddedHeader + 64, work.bake, hash);
+  }
+
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+  static void transformC3Digest(const uint8_t raw[32], uint8_t out[32], uint8_t mode) {
+    if (mode == 0) {
+      memcpy(out, raw, 32);
+    } else if (mode == 1) {
+      for (uint8_t i = 0; i < 32; i++) out[i] = raw[31 - i];
+    } else if (mode == 2) {
+      for (uint8_t i = 0; i < 32; i += 4) {
+        out[i + 0] = raw[i + 3];
+        out[i + 1] = raw[i + 2];
+        out[i + 2] = raw[i + 1];
+        out[i + 3] = raw[i + 0];
+      }
+    } else {
+      for (uint8_t i = 0; i < 8; i++) {
+        const uint8_t* src = raw + (7 - i) * 4;
+        out[i * 4 + 0] = src[0];
+        out[i * 4 + 1] = src[1];
+        out[i * 4 + 2] = src[2];
+        out[i * 4 + 3] = src[3];
+      }
+    }
+  }
+
+  static bool hashNonceHardwareC3Raw(const Work& source, uint32_t nonce, uint8_t raw[32]) {
+    uint8_t header[80];
+    uint8_t first[32];
+    memcpy(header, source.header, sizeof(header));
+    memcpy(header + 76, &nonce, sizeof(nonce));
+    esp_sha(SHA2_256, header, sizeof(header), first);
+    esp_sha(SHA2_256, first, sizeof(first), raw);
+    return true;
+  }
+
+  static bool hashNonceHardwareC3(const Work& source, uint32_t nonce, uint8_t hash[32]) {
+    static int8_t digestMode = -1;
+    static bool disabled = false;
+    if (disabled) return false;
+
+    uint8_t raw[32];
+    if (!hashNonceHardwareC3Raw(source, nonce, raw)) return false;
+
+    if (digestMode >= 0) {
+      transformC3Digest(raw, hash, static_cast<uint8_t>(digestMode));
+      return true;
+    }
+
+    uint8_t software[32];
+    if (!hashNonceSoftware(source, nonce, software)) {
+      disabled = true;
+      return false;
+    }
+
+    for (uint8_t mode = 0; mode < 4; mode++) {
+      uint8_t candidate[32];
+      transformC3Digest(raw, candidate, mode);
+      if (memcmp(candidate, software, sizeof(candidate)) == 0) {
+        digestMode = static_cast<int8_t>(mode);
+        memcpy(hash, candidate, sizeof(candidate));
+        return true;
+      }
+    }
+
+    disabled = true;
+    return false;
+  }
+#endif
+
+  static bool hashNonce(const Work& source, uint32_t nonce, uint8_t hash[32]) {
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+    if (hashNonceHardwareC3(source, nonce, hash)) {
+      return true;
+    }
+#endif
+    return hashNonceSoftware(source, nonce, hash);
   }
 
   static inline void shaWaitIdleEsp32() {
@@ -782,7 +926,7 @@ private:
     uint32_t processed = 0;
     double localBest = 0.0;
     const uint32_t startNonce = work.nextNonce;
-    const uint32_t endNonce = startNonce + 16384UL;
+    const uint32_t endNonce = startNonce + HARDWARE_BATCH_NONCES;
 
     esp_sha_lock_engine(SHA2_256);
     for (uint32_t nonce = startNonce; nonce != endNonce && !stopRequested_; nonce++) {
@@ -823,6 +967,91 @@ private:
   }
 #endif
 
+#if !defined(CONFIG_IDF_TARGET_ESP32)
+  static bool hashNonceSoftware(const Work& source, uint32_t nonce, uint8_t hash[32]) {
+    Work work = source;
+    memcpy(work.paddedHeader + 76, &nonce, sizeof(nonce));
+    return nerd_sha256d_baked(work.midstate, work.paddedHeader + 64, work.bake, hash);
+  }
+
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+  static void transformC3Digest(const uint8_t raw[32], uint8_t out[32], uint8_t mode) {
+    if (mode == 0) {
+      memcpy(out, raw, 32);
+    } else if (mode == 1) {
+      for (uint8_t i = 0; i < 32; i++) out[i] = raw[31 - i];
+    } else if (mode == 2) {
+      for (uint8_t i = 0; i < 32; i += 4) {
+        out[i + 0] = raw[i + 3];
+        out[i + 1] = raw[i + 2];
+        out[i + 2] = raw[i + 1];
+        out[i + 3] = raw[i + 0];
+      }
+    } else {
+      for (uint8_t i = 0; i < 8; i++) {
+        const uint8_t* src = raw + (7 - i) * 4;
+        out[i * 4 + 0] = src[0];
+        out[i * 4 + 1] = src[1];
+        out[i * 4 + 2] = src[2];
+        out[i * 4 + 3] = src[3];
+      }
+    }
+  }
+
+  static bool hashNonceHardwareC3Raw(const Work& source, uint32_t nonce, uint8_t raw[32]) {
+    uint8_t header[80];
+    uint8_t first[32];
+    memcpy(header, source.header, sizeof(header));
+    memcpy(header + 76, &nonce, sizeof(nonce));
+    esp_sha(SHA2_256, header, sizeof(header), first);
+    esp_sha(SHA2_256, first, sizeof(first), raw);
+    return true;
+  }
+
+  static bool hashNonceHardwareC3(const Work& source, uint32_t nonce, uint8_t hash[32]) {
+    static int8_t digestMode = -1;
+    static bool disabled = false;
+    if (disabled) return false;
+
+    uint8_t raw[32];
+    if (!hashNonceHardwareC3Raw(source, nonce, raw)) return false;
+
+    if (digestMode >= 0) {
+      transformC3Digest(raw, hash, static_cast<uint8_t>(digestMode));
+      return true;
+    }
+
+    uint8_t software[32];
+    if (!hashNonceSoftware(source, nonce, software)) {
+      disabled = true;
+      return false;
+    }
+
+    for (uint8_t mode = 0; mode < 4; mode++) {
+      uint8_t candidate[32];
+      transformC3Digest(raw, candidate, mode);
+      if (memcmp(candidate, software, sizeof(candidate)) == 0) {
+        digestMode = static_cast<int8_t>(mode);
+        memcpy(hash, candidate, sizeof(candidate));
+        return true;
+      }
+    }
+
+    disabled = true;
+    return false;
+  }
+#endif
+
+  static bool hashNonce(const Work& source, uint32_t nonce, uint8_t hash[32]) {
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+    if (hashNonceHardwareC3(source, nonce, hash)) {
+      return true;
+    }
+#endif
+    return hashNonceSoftware(source, nonce, hash);
+  }
+#endif
+
   void mineBatch(Work& work, double poolDifficulty, uint32_t& requestId) {
 #if defined(CONFIG_IDF_TARGET_ESP32)
     if (mineBatchHardwareEsp32(work, poolDifficulty, requestId)) {
@@ -836,11 +1065,10 @@ private:
     uint32_t processed = 0;
     double localBest = 0.0;
 
-    for (uint16_t i = 0; i < 4096 && !stopRequested_; i++) {
+    for (uint16_t i = 0; i < SOFTWARE_BATCH_NONCES && !stopRequested_; i++) {
       const uint32_t nonce = work.nextNonce++;
-      memcpy(work.paddedHeader + 76, &nonce, sizeof(nonce));
       processed++;
-      if (nerd_sha256d_baked(work.midstate, work.paddedHeader + 64, work.bake, hash)) {
+      if (hashNonce(work, nonce, hash)) {
         const double diff = difficultyFromHash(hash);
         if (diff > localBest) localBest = diff;
         if (diff > poolDifficulty) {
@@ -954,7 +1182,10 @@ private:
   void setState(State state) {
     portENTER_CRITICAL(&mux_);
     stats_.state = state;
-    if (state != State::Error) stats_.lastError[0] = '\0';
+    if (state != State::Error) {
+      stats_.lastError[0] = '\0';
+      stats_.retryInSeconds = 0;
+    }
     stats_.uptimeSeconds = startedAtMs_ == 0 ? 0 : (millis() - startedAtMs_) / 1000;
     portEXIT_CRITICAL(&mux_);
   }
@@ -964,6 +1195,13 @@ private:
     stats_.state = State::Error;
     strncpy(stats_.lastError, message, sizeof(stats_.lastError) - 1);
     stats_.lastError[sizeof(stats_.lastError) - 1] = '\0';
+    portEXIT_CRITICAL(&mux_);
+  }
+
+  void setRetry(uint32_t retryCount, uint32_t retryInSeconds) {
+    portENTER_CRITICAL(&mux_);
+    stats_.retryCount = retryCount;
+    stats_.retryInSeconds = retryInSeconds;
     portEXIT_CRITICAL(&mux_);
   }
 

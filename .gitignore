@@ -1,5 +1,6 @@
 .github/instructions/
 TODO.txt
 femtodeck-c3/build/
+femto-c3-headless/build/
 dist/
 site/

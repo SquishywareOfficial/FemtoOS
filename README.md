@@ -4,6 +4,7 @@ FemtoDeck is a multi-app and game collection for tiny ESP32 development boards. 
 
 - **FemtoDeck C3**: Targeted at the ESP32-C3 0.42 inch OLED module (`72x40` resolution).
 - **FemtoDeck T-Display**: Targeted at the TENSTAR/LilyGO T-Display ESP32 (`240x135` color resolution).
+- **Femto C3 Headless**: A generic no-display ESP32-C3 build. The current role is a miner slave for Mining Manager clusters.
 
 Repo shortcut: [git.new/esp32games](https://git.new/esp32games)
 
@@ -13,6 +14,11 @@ Repo shortcut: [git.new/esp32games](https://git.new/esp32games)
 - OLED on I2C pins `GPIO5` / `GPIO6`
 - BOOT button on `GPIO9`
 - Optional controllable LED on `GPIO8`
+
+### ESP32-C3 Headless
+- BOOT button on `GPIO9`
+- Status LED on `GPIO8`
+- No OLED or menu required
 
 ### TENSTAR T-Display ESP32
 - 1.14" Color TFT (ST7789)
@@ -43,6 +49,7 @@ Radio-capable utilities:
 - **ESP Contacts** manages a shared ESP-NOW contact list. Use **Listen for Contacts** to save nearby FemtoDeck devices, **Send My Contact** to broadcast your saved initials, and **Manage Contacts** to remove saved peers.
 - **Communicator** sends predefined ESP-NOW messages. Messages use compact dictionary path IDs rather than full strings, then the receiver maps the path back to local text. After choosing a message, select **ALL** or a saved contact. Incoming messages are shown only when addressed to **ALL** or to this device's saved initials.
 - **Femto Miner** is a small solo mining utility with a dedicated setup portal for wallet and pool settings. It reuses saved FemtoDeck WiFi profiles and defaults to `public-pool.io`.
+- **Mining Manager** is a T-Display cluster controller. It connects to the pool once, optionally mines locally, pairs headless C3 slaves over ESP-NOW, assigns nonce ranges, and submits valid shares for the cluster.
 
 The communicator packet has a small magic header (`FC`) and a protocol version so FemtoDeck devices can reject unrelated ESP-NOW traffic. It also carries the sender initials, recipient initials, and firmware build number. If a received message comes from a different FemtoDeck build, the app still shows the message but marks it with a version warning.
 
@@ -61,6 +68,16 @@ Default miner settings:
 - Stratum username: `<wallet>.<worker>`
 
 The setup portal SSID is `FemtoMiner Setup` with password `femtominer`. It saves wallet, pool host, pool port, and pool password into the `miner` preferences namespace. The **Options / Save Manager** screen includes a **Miner** entry for clearing these settings.
+
+### Mining Manager And Headless Slaves
+
+Mining Manager is separate from Femto Miner. Femto Miner remains the normal solo-mining app, while Mining Manager coordinates a small ESP-NOW cluster.
+
+- Flash `femto-c3-headless` to no-screen ESP32-C3 boards.
+- Open **Mining Manager** on the T-Display and start **Pair Slaves**.
+- Headless slaves auto-hop WiFi channels until they hear the pairing beacon, then remember the master.
+- The T-Display master can mine locally or act mostly as a coordinator. Use **Local Mining: On/Off** in Mining Manager, or serial commands `cluster local on` and `cluster local off`.
+- Hold BOOT on a headless C3 for about five seconds to clear its saved master pairing.
 
 ## Build
 
@@ -81,6 +98,11 @@ arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=huge_app femtodec
 arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app femtodeck-t-display
 ```
 
+### Compile for headless ESP32-C3:
+```sh
+arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=huge_app femto-c3-headless
+```
+
 The T-Display target includes a repo-local `tft_setup.h` for TFT_eSPI, so you should not need to edit the installed TFT_eSPI library setup files.
 
 ## Browser Installer & Simulator
@@ -90,7 +112,7 @@ When GitHub Pages is deployed, you can flash your device directly from the brows
 - **Web Installer**: `https://thedarkfalcon.github.io/femtodeck-esp32-c3/`
 - **Simulator**: `https://thedarkfalcon.github.io/femtodeck-esp32-c3/simulator/`
 
-The browser installer supports both board types and is the recommended way for most users to flash their device.
+The browser installer supports the C3, T-Display, and headless C3 builds and is the recommended way for most users to flash their device.
 
 ## License
 

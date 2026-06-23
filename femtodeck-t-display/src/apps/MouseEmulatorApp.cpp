@@ -6,10 +6,11 @@
 #include <HIDTypes.h>
 
 #include "../../TDisplayUi.h"
+#include "../shared/logic/MouseIdentityLogic.h"
 
 namespace {
-constexpr const char* DEVICE_NAME = "Logitech Signature M650";
-constexpr const char* DEVICE_MANUFACTURER = "Logitech";
+constexpr uint8_t HID_COUNTRY_NOT_LOCALIZED = 0x00;
+constexpr uint8_t HID_INFO_NORMALLY_CONNECTABLE = 0x02;
 constexpr int VERTICAL_WIGGLE_LIMIT = 20;
 constexpr int VERTICAL_WIGGLE_MIN_STEPS = 8;
 constexpr int VERTICAL_WIGGLE_MAX_STEPS = 28;
@@ -28,21 +29,42 @@ const uint8_t HID_REPORT_DESCRIPTOR[] = {
 
 class NimbleMouse : public NimBLEServerCallbacks {
   public:
-    void begin() {
-      if (started_) return;
-      NimBLEDevice::init(DEVICE_NAME);
+    void begin(const MouseIdentityProfile& identity, uint8_t profileIndex) {
+      if (started_ && currentProfileIndex_ == profileIndex) return;
+      if (started_) end();
+      NimBLEDevice::init(identity.deviceName);
+      NimBLEDevice::setSecurityAuth(true, false, true);
+      NimBLEDevice::setSecurityIOCap(0x03); // No input/output: pair without a PIN.
       server_ = NimBLEDevice::createServer();
       server_->setCallbacks(this, false);
+      server_->advertiseOnDisconnect(true);
       hid_ = new NimBLEHIDDevice(server_);
       inputMouse_ = hid_->getInputReport(1);
-      hid_->setManufacturer(DEVICE_MANUFACTURER);
+      hid_->setManufacturer(identity.manufacturer);
+      hid_->setPnp(0x02, identity.vendorId, identity.productId, 0x0110);
+      hid_->setHidInfo(HID_COUNTRY_NOT_LOCALIZED, HID_INFO_NORMALLY_CONNECTABLE);
       hid_->setReportMap((uint8_t*)HID_REPORT_DESCRIPTOR, sizeof(HID_REPORT_DESCRIPTOR));
+      hid_->setBatteryLevel(100);
       server_->start();
       NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
       adv->setAppearance(HID_MOUSE);
       adv->addServiceUUID(hid_->getHidService()->getUUID());
+      adv->setName(identity.deviceName);
+      adv->addTxPower();
       adv->start();
+      currentProfileIndex_ = profileIndex;
       started_ = true;
+    }
+    void end() {
+      if (!started_) return;
+      NimBLEDevice::stopAdvertising();
+      NimBLEDevice::deinit(true);
+      started_ = false;
+      connected_ = false;
+      currentProfileIndex_ = 255;
+      server_ = nullptr;
+      hid_ = nullptr;
+      inputMouse_ = nullptr;
     }
     bool isConnected() const { return started_ && connected_ && server_ && server_->getConnectedCount() > 0; }
     void move(signed char x, signed char y) {
@@ -52,8 +74,12 @@ class NimbleMouse : public NimBLEServerCallbacks {
     }
   private:
     void onConnect(NimBLEServer* s, NimBLEConnInfo& c) override { connected_ = true; }
-    void onDisconnect(NimBLEServer* s, NimBLEConnInfo& c, int r) override { connected_ = false; }
+    void onDisconnect(NimBLEServer* s, NimBLEConnInfo& c, int r) override {
+      connected_ = false;
+      NimBLEDevice::startAdvertising();
+    }
     bool started_ = false, connected_ = false;
+    uint8_t currentProfileIndex_ = 255;
     NimBLEServer* server_ = nullptr;
     NimBLEHIDDevice* hid_ = nullptr;
     NimBLECharacteristic* inputMouse_ = nullptr;
@@ -64,9 +90,34 @@ NimbleMouse bleMouse;
 MouseEmulatorApp::MouseEmulatorApp(uint32_t width, uint32_t height)
     : App("Mouse Emulator", width, height) {}
 
+void MouseEmulatorApp::ensureProfileLoaded() {
+  if (profileLoaded_) return;
+  profileIndex_ = MouseIdentityLogic::loadIndex();
+  profileLoaded_ = true;
+}
+
+void MouseEmulatorApp::cycleProfile() {
+  ensureProfileLoaded();
+  profileIndex_ = (profileIndex_ + 1) % MouseIdentityLogic::PROFILE_COUNT;
+  MouseIdentityLogic::saveIndex(profileIndex_);
+}
+
+bool MouseEmulatorApp::updateStart(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) {
+  (void)deltaMs;
+  ensureProfileLoaded();
+  if (b1.click) {
+    cycleProfile();
+  } else if (b1.longPress || b2.click) {
+    MouseIdentityLogic::saveIndex(profileIndex_);
+    startRunning();
+  }
+  return true;
+}
+
 void MouseEmulatorApp::onAppReset() {
+  ensureProfileLoaded();
   logic_.reset(millis());
-  bleMouse.begin();
+  bleMouse.begin(MouseIdentityLogic::profile(profileIndex_), profileIndex_);
   lastClockUpdate_ = millis();
   uiInitialized_ = false;
 }
@@ -139,6 +190,7 @@ void MouseEmulatorApp::sendHumanizedStep() {
 
 void MouseEmulatorApp::drawRunning(TFT_eSPI& tft) {
   if (!uiInitialized_) {
+    const MouseIdentityProfile& profile = MouseIdentityLogic::profile(profileIndex_);
     TDisplayUi::clear(tft);
     TDisplayUi::header(tft, "Mouse Emulator", TFT_ORANGE);
     tft.setTextSize(1);
@@ -146,7 +198,7 @@ void MouseEmulatorApp::drawRunning(TFT_eSPI& tft) {
     tft.drawString("Advertises as:", 10, 36);
     tft.setTextSize(2);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString("Logitech M650", 10, 49);
+    tft.drawString(profile.shortName, 10, 49);
     tft.setTextSize(1);
     tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
     tft.drawString("Host", 10, 78);
@@ -234,11 +286,17 @@ void MouseEmulatorApp::updateDynamicStats(TFT_eSPI& tft) {
 }
 
 void MouseEmulatorApp::drawStart(TFT_eSPI& tft) {
+    ensureProfileLoaded();
+    const MouseIdentityProfile& profile = MouseIdentityLogic::profile(profileIndex_);
     TDisplayUi::clear(tft);
     TDisplayUi::header(tft, "Mouse Emulator", TFT_ORANGE);
-    TDisplayUi::centered(tft, "Logitech", 48, 3, TFT_WHITE);
-    TDisplayUi::centered(tft, "Signature M650", 80, 2, TFT_LIGHTGREY);
-    TDisplayUi::footer(tft, "B1 start");
+    TDisplayUi::centered(tft, profile.manufacturer, 38, 3, TFT_WHITE);
+    TDisplayUi::centered(tft, profile.deviceName, 76, 2, TFT_LIGHTGREY);
+    TDisplayUi::footer(tft, "B1 next  B2 start");
 }
 
 bool MouseEmulatorApp::hasCustomOverlay() const { return true; }
+
+void MouseEmulatorApp::onAppExit() {
+  bleMouse.end();
+}

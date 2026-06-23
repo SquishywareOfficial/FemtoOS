@@ -25,6 +25,9 @@ jobs:
           - board: femtodeck-t-display
             fqbn: esp32:esp32:esp32:PartitionScheme=huge_app
             chip: esp32
+          - board: femto-c3-headless
+            fqbn: esp32:esp32:esp32c3:PartitionScheme=huge_app
+            chip: esp32c3
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -113,12 +116,21 @@ EOF
             "name": "FemtoDeck",
             "builds": [
               {
+                "name": "FemtoDeck C3",
                 "chipFamily": "ESP32-C3",
                 "parts": [
                   { "path": "firmware/femtodeck-c3-firmware/femtodeck-c3-merged.bin", "offset": 0 }
                 ]
               },
               {
+                "name": "Femto C3 Headless",
+                "chipFamily": "ESP32-C3",
+                "parts": [
+                  { "path": "firmware/femto-c3-headless-firmware/femto-c3-headless-merged.bin", "offset": 0 }
+                ]
+              },
+              {
+                "name": "FemtoDeck T-Display",
                 "chipFamily": "ESP32",
                 "parts": [
                   { "path": "firmware/femtodeck-t-display-firmware/femtodeck-t-display.ino.bin", "offset": 65536 }

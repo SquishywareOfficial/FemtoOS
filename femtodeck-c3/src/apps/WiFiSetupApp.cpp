@@ -647,13 +647,12 @@ void WiFiSetupApp::drawMain(U8G2& u8g2) {
 
 void WiFiSetupApp::drawConfigure(U8G2& u8g2) {
   u8g2.drawFrame(left_, 0, width, height);
-  u8g2.setFont(u8g2_font_5x8_tr);
-  u8g2.drawStr(left_ + 3, 9, "Configure");
   u8g2.setFont(u8g2_font_4x6_tr);
-  u8g2.drawStr(left_ + 3, 17, portalLabel());
-  u8g2.drawStr(left_ + 3, 25, AP_SSID);
-  u8g2.drawStr(left_ + 3, 32, "192.168.4.1");
-  u8g2.drawStr(left_ + 3, 39, "Tap scan Hold back");
+  u8g2.drawStr(left_ + 3, 7, portalLabel());
+  u8g2.drawStr(left_ + 3, 15, "AP:FemtoDeck-C3");
+  u8g2.drawStr(left_ + 3, 23, "PW:femtodeck");
+  u8g2.drawStr(left_ + 3, 31, "IP:192.168.4.1");
+  u8g2.drawStr(left_ + 3, 39, "Hold back");
 }
 
 void WiFiSetupApp::drawProfileSelect(U8G2& u8g2, const char* title, const char* action) {

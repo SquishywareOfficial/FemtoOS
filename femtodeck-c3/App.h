@@ -52,6 +52,7 @@ class App {
         void begin(uint32_t nowMs, bool buttonDown);
         void tick(uint32_t nowMs, bool buttonDown);
         void render(U8G2& u8g2);
+        virtual uint16_t runningRenderIntervalMs() const;
 
         bool shouldExitToMenu() const;
         void clearExitRequest();
@@ -64,16 +65,16 @@ class App {
 
     protected:
         virtual void onAppReset();
+        virtual bool updateStart(uint32_t deltaMs, const ButtonInput& input);
         virtual void updateRunning(uint32_t deltaMs, const ButtonInput& input) = 0;
         virtual void drawRunning(U8G2& u8g2) = 0;
         virtual void drawStart(U8G2& u8g2);
         virtual void drawEnd(U8G2& u8g2);
         virtual bool startsRunningImmediately() const;
         virtual void onAppExit();
-
-    private:
         void startRunning();
 
+    private:
         AppPhase phase_ = AppPhase::Start;
         SingleButton button_;
         uint32_t lastUpdateMs_ = 0;

@@ -13,6 +13,7 @@
 #include "src/apps/CountdownApp.h"
 #include "src/apps/ClockApp.h"
 #include "src/apps/FemtoMinerApp.h"
+#include "src/apps/MiningManagerApp.h"
 #include "src/apps/MetronomeApp.h"
 #include "src/apps/WiFiSetupApp.h"
 #include "src/apps/EspContactsApp.h"
@@ -45,6 +46,8 @@
 #include "Version.h"
 
 TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite* menuFrameSprite = nullptr;
+bool menuFrameReady = false;
 
 constexpr uint8_t BUTTON_1 = 0;
 constexpr uint8_t BUTTON_2 = 35;
@@ -69,6 +72,7 @@ RandomNumberApp randomNumberApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 StopwatchApp stopwatchApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 ClockApp clockApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 FemtoMinerApp femtoMinerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
+MiningManagerApp miningManagerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 CountdownApp countdownApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 MetronomeApp metronomeApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 WiFiSetupApp wifiSetupApp(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -160,6 +164,7 @@ MenuEntry appsMenu[] = {
     {nullptr, MenuAction::Launch, &randomNumberApp},
     {nullptr, MenuAction::Launch, &metronomeApp},
     {nullptr, MenuAction::Launch, &femtoMinerApp},
+    {nullptr, MenuAction::Launch, &miningManagerApp},
     {nullptr, MenuAction::Launch, &espContactsApp},
     {nullptr, MenuAction::Launch, &communicatorApp},
     {nullptr, MenuAction::Launch, &mouseEmulatorApp},
@@ -203,6 +208,7 @@ App* autoLaunchChoices[] = {
     &randomNumberApp,
     &metronomeApp,
     &femtoMinerApp,
+    &miningManagerApp,
     &espContactsApp,
     &communicatorApp,
     &mouseEmulatorApp,
@@ -223,6 +229,13 @@ uint8_t menuIndex = 0;
 uint8_t scrollOffset = 0;
 bool menuSelectArmed = false;
 bool menuDirty = true;
+bool menuRendered = false;
+MenuView renderedMenuView = MenuView::Root;
+uint8_t renderedMenuIndex = 255;
+uint8_t renderedScrollOffset = 255;
+uint8_t renderedMenuCount = 0;
+bool renderedMenuSelectArmed = false;
+TDisplayUi::TextSize renderedMenuTextSize = TDisplayUi::TextSize::Compact;
 bool menuInputLockedUntilRelease = false;
 bool bootSplashActive = true;
 bool bootSkipReleasePending = false;
@@ -361,15 +374,29 @@ void markMenuDirty() {
   menuDirty = true;
 }
 
+void invalidateMenuRender() {
+  menuRendered = false;
+  renderedMenuIndex = 255;
+  renderedScrollOffset = 255;
+}
+
 void openMenu(MenuView view) {
   currentMenu = view;
   menuIndex = 0;
   scrollOffset = 0;
   menuSelectArmed = false;
+  invalidateMenuRender();
   markMenuDirty();
 }
 
 void launchApp(App& app, uint32_t nowMs, bool fromAutoLaunch = false, bool autoRun = false) {
+  if (menuFrameSprite != nullptr) {
+    menuFrameSprite->deleteSprite();
+    delete menuFrameSprite;
+    menuFrameSprite = nullptr;
+    menuFrameReady = false;
+  }
+  invalidateMenuRender();
   activeReturnMenu = currentMenu;
   activeApp = &app;
   if (&app == &femtoMinerApp) {
@@ -481,6 +508,7 @@ void exitActiveAppToMenu(uint32_t nowMs, bool b1, bool b2) {
   menuButton1.reset(b1, nowMs);
   menuButton2.reset(b2, nowMs);
   markMenuDirty();
+  invalidateMenuRender();
   tft.setRotation(1);
   tft.fillScreen(TFT_BLACK);
 }
@@ -488,7 +516,7 @@ void exitActiveAppToMenu(uint32_t nowMs, bool b1, bool b2) {
 void renderActiveAppIfDue(uint32_t nowMs) {
   const AppPhase currentPhase = activeApp->phase();
   const uint16_t interval = currentPhase == AppPhase::Running ? activeApp->runningRenderIntervalMs() : APP_STATIC_RENDER_MS;
-  if (!appRenderDue && currentPhase == lastRenderedAppPhase && nowMs < nextAppRenderMs) {
+  if (!activeApp->wantsImmediateRender() && !appRenderDue && currentPhase == lastRenderedAppPhase && nowMs < nextAppRenderMs) {
     return;
   }
   activeApp->render(tft);
@@ -574,7 +602,14 @@ void handleSerialCommand(String command) {
     Serial.println("  miner start");
     Serial.println("  miner stop");
     Serial.println("  miner stats");
+    Serial.println("  miner logs on|off");
     Serial.println("  miner autostart on|off (alias)");
+    Serial.println("  cluster start");
+    Serial.println("  cluster stop");
+    Serial.println("  cluster stats");
+    Serial.println("  cluster pair");
+    Serial.println("  cluster reset");
+    Serial.println("  cluster local on|off");
     return;
   }
 
@@ -654,6 +689,16 @@ void handleSerialCommand(String command) {
     femtoMinerApp.debugPrintStats();
     return;
   }
+  if (command.equalsIgnoreCase("miner logs on")) {
+    femtoMinerApp.setEmitDebugLogs(true);
+    Serial.println("[miner] debug logs on");
+    return;
+  }
+  if (command.equalsIgnoreCase("miner logs off")) {
+    femtoMinerApp.setEmitDebugLogs(false);
+    Serial.println("[miner] debug logs off");
+    return;
+  }
   if (command.equalsIgnoreCase("miner autostart on")) {
     AutoLaunchSettings::setAutoRun(true);
     Serial.println("[debug] autolaunch autorun on");
@@ -662,6 +707,48 @@ void handleSerialCommand(String command) {
   if (command.equalsIgnoreCase("miner autostart off")) {
     AutoLaunchSettings::setAutoRun(false);
     Serial.println("[debug] autolaunch autorun off");
+    return;
+  }
+
+  if (command.equalsIgnoreCase("cluster start")) {
+    if (activeApp == nullptr) {
+      launchApp(miningManagerApp, millis());
+    }
+    if (activeApp == &miningManagerApp) {
+      miningManagerApp.debugStartCluster();
+    } else {
+      Serial.println("[cluster] another app is active");
+    }
+    return;
+  }
+  if (command.equalsIgnoreCase("cluster stop")) {
+    miningManagerApp.debugStopCluster();
+    return;
+  }
+  if (command.equalsIgnoreCase("cluster stats")) {
+    miningManagerApp.debugPrintStats();
+    return;
+  }
+  if (command.equalsIgnoreCase("cluster pair")) {
+    if (activeApp == nullptr) {
+      launchApp(miningManagerApp, millis());
+    }
+    miningManagerApp.debugStartPairing();
+    return;
+  }
+  if (command.equalsIgnoreCase("cluster reset")) {
+    if (activeApp == nullptr) {
+      launchApp(miningManagerApp, millis());
+    }
+    miningManagerApp.debugResetCluster();
+    return;
+  }
+  if (command.equalsIgnoreCase("cluster local on")) {
+    miningManagerApp.debugSetLocalMining(true);
+    return;
+  }
+  if (command.equalsIgnoreCase("cluster local off")) {
+    miningManagerApp.debugSetLocalMining(false);
     return;
   }
 
@@ -720,24 +807,61 @@ void drawMenu() {
 
   const uint8_t count = currentMenuCount();
   const TDisplayUi::TextSize textSize = TDisplayUi::loadTextSize();
+  const uint8_t oldIndex = renderedMenuIndex;
+  const uint8_t oldScroll = renderedScrollOffset;
+  const TDisplayUi::TextSize oldTextSize = renderedMenuTextSize;
   scrollOffset = TDisplayUi::menuScrollOffset(menuIndex, count, TDisplayUi::menuStyle(textSize));
 
   tft.setRotation(1);
-  static TFT_eSprite menuFrame(&tft);
-  static bool menuFrameTried = false;
-  static bool menuFrameReady = false;
-  if (!menuFrameTried) {
-    menuFrameTried = true;
-    menuFrame.setColorDepth(8);
-    menuFrameReady = menuFrame.createSprite(SCREEN_WIDTH, SCREEN_HEIGHT) != nullptr;
+  const bool canRedrawRows =
+      menuRendered &&
+      renderedMenuView == currentMenu &&
+      renderedMenuCount == count &&
+      renderedMenuSelectArmed == menuSelectArmed &&
+      oldTextSize == textSize &&
+      oldScroll == scrollOffset &&
+      oldIndex != 255 &&
+      oldIndex != menuIndex;
+
+  if (canRedrawRows) {
+    if (oldIndex >= scrollOffset && oldIndex < scrollOffset + TDisplayUi::menuStyle(textSize).visibleRows) {
+      const uint8_t oldRow = oldIndex - scrollOffset;
+      TDisplayUi::menuRow(tft, oldRow, entryTitle(currentMenuEntries()[oldIndex]), false, textSize, TFT_GREEN);
+    }
+    if (menuIndex >= scrollOffset && menuIndex < scrollOffset + TDisplayUi::menuStyle(textSize).visibleRows) {
+      const uint8_t newRow = menuIndex - scrollOffset;
+      TDisplayUi::menuRow(tft, newRow, entryTitle(currentMenuEntries()[menuIndex]), true, textSize, TFT_GREEN);
+    }
+    TDisplayUi::menuCounter(tft, menuIndex, count);
+    renderedMenuIndex = menuIndex;
+    renderedScrollOffset = scrollOffset;
+    return;
+  }
+
+  if (menuFrameSprite == nullptr) {
+    menuFrameSprite = new TFT_eSprite(&tft);
+    if (menuFrameSprite != nullptr) {
+      menuFrameSprite->setColorDepth(8);
+    }
+  }
+  if (menuFrameSprite != nullptr && !menuFrameReady) {
+    menuFrameReady = menuFrameSprite->createSprite(SCREEN_WIDTH, SCREEN_HEIGHT) != nullptr;
   }
 
   if (menuFrameReady) {
-    drawMenuFrame(menuFrame, count, textSize);
-    menuFrame.pushSprite(0, 0);
+    drawMenuFrame(*menuFrameSprite, count, textSize);
+    menuFrameSprite->pushSprite(0, 0);
   } else {
+    tft.fillScreen(TFT_BLACK);
     drawMenuFrame(tft, count, textSize);
   }
+  menuRendered = true;
+  renderedMenuView = currentMenu;
+  renderedMenuIndex = menuIndex;
+  renderedScrollOffset = scrollOffset;
+  renderedMenuCount = count;
+  renderedMenuSelectArmed = menuSelectArmed;
+  renderedMenuTextSize = textSize;
 }
 
 void setup() {
