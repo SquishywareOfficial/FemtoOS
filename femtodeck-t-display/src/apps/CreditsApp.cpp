@@ -7,7 +7,7 @@
 
 namespace {
 constexpr uint8_t ABOUT_ITEM_COUNT = 2;
-constexpr uint8_t LICENSE_PAGE_COUNT = 4;
+constexpr uint8_t LICENSE_PAGE_COUNT = 5;
 
 struct CreditPage {
   const char* game;
@@ -43,6 +43,8 @@ const CreditPage CREDIT_PAGES[] = {
     {"Simon", "thedarkfalcon", nullptr},
     {"Pet Simulator", "thedarkfalcon", nullptr},
     {"Femto Clock", "thedarkfalcon", nullptr},
+    {"Femto Miner", "thedarkfalcon", nullptr},
+    {"Distributed Miner", "thedarkfalcon", nullptr},
     {"Counter", "thedarkfalcon", nullptr},
     {"Mouse Emulator", "thedarkfalcon", nullptr},
     {"Reading", "thedarkfalcon", nullptr},
@@ -251,6 +253,12 @@ void CreditsApp::drawLicense(TFT_eSPI& tft) {
       drawBodyLine(tft, 18, 50, "Permission:");
       drawBodyLine(tft, 18, 68, "copy, modify, publish,");
       drawBodyLine(tft, 18, 84, "sell, and share freely.");
+      break;
+    case 3:
+      drawBodyLine(tft, 18, 50, "NerdMiner-derived");
+      drawBodyLine(tft, 18, 68, "miner code uses MIT.", TFT_GREEN);
+      drawBodyLine(tft, 18, 86, "See licenses/");
+      drawBodyLine(tft, 18, 102, "NerdMiner_v2-MIT.txt");
       break;
     default:
       drawBodyLine(tft, 18, 50, "No warranty.");

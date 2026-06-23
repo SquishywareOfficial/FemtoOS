@@ -6,6 +6,8 @@
 - Added native T-Display slave pages for status, work rate, assignment debug data, pairing reset, and exit.
 - Kept T-Display serial cluster commands master-oriented by forcing the app back to master mode before debug start/pair/reset actions.
 - Tuned Distributed Miner nonce assignments so fast slaves receive larger work ranges based on their reported hashrate, reducing ESP-NOW assignment overhead.
+- Renamed the T-Display cluster utility internals to `Distributed Miner` so C3 and T-Display use the same user-facing app name.
+- Updated About / License and Credits so NerdMiner-derived MIT portions, Femto Miner, and Distributed Miner are represented on device.
 
 ## v2.0 b76
 
@@ -24,9 +26,9 @@
 
 ## v2.0 b74
 
-- Fixed T-Display Mining Manager page rendering so dashboard, slave list, pool, pairing, and control pages clear through the same sprite-backed pattern as Femto Miner.
-- Added immediate redraw and forced clear handling to Mining Manager page/action changes to remove stale text between pages.
-- Clarified the Mining Manager pairing screen so it shows when pairing is requested but the ESP-NOW radio is still waiting for WiFi/radio startup.
+- Fixed T-Display Distributed Miner page rendering so dashboard, slave list, pool, pairing, and control pages clear through the same sprite-backed pattern as Femto Miner.
+- Added immediate redraw and forced clear handling to Distributed Miner page/action changes to remove stale text between pages.
+- Clarified the Distributed Miner pairing screen so it shows when pairing is requested but the ESP-NOW radio is still waiting for WiFi/radio startup.
 
 ## v2.0 b73
 
@@ -52,7 +54,7 @@
 
 ## v2.0 b70
 
-- Added a T-Display **Mining Manager** utility for ESP-NOW cluster mining, separate from the existing solo Femto Miner app.
+- Added a T-Display **Distributed Miner** utility for ESP-NOW cluster mining, separate from the existing solo Femto Miner app.
 - Added shared cluster protocol and mining logic for master beacons, pairing, slave status, nonce-range assignments, work results, local master mining, and pool share submission.
 - Added a generic `femto-c3-headless` ESP32-C3 sketch; its first role is a no-display Miner Slave with GPIO8 LED status and BOOT long-hold pairing reset.
 - Added a persisted cluster `Local Mining` setting so the T-Display master can mine locally or act mostly as a coordination node during testing.

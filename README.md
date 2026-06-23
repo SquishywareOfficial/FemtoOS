@@ -4,7 +4,7 @@ FemtoDeck is a multi-app and game collection for tiny ESP32 development boards. 
 
 - **FemtoDeck C3**: Targeted at the ESP32-C3 0.42 inch OLED module (`72x40` resolution).
 - **FemtoDeck T-Display**: Targeted at the TENSTAR/LilyGO T-Display ESP32 (`240x135` color resolution).
-- **Femto C3 Headless**: A generic no-display ESP32-C3 build. The current role is a miner slave for Mining Manager clusters.
+- **Femto C3 Headless**: A generic no-display ESP32-C3 build. The current role is a miner slave for Distributed Miner clusters.
 
 Repo shortcut: [git.new/esp32games](https://git.new/esp32games)
 

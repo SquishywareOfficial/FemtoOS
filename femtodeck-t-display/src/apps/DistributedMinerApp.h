@@ -13,10 +13,10 @@ enum class MasterState : uint8_t;
 enum class SlaveState : uint8_t;
 }
 
-class MiningManagerApp : public App {
+class DistributedMinerApp : public App {
 public:
-  MiningManagerApp(uint32_t width, uint32_t height);
-  ~MiningManagerApp() override;
+  DistributedMinerApp(uint32_t width, uint32_t height);
+  ~DistributedMinerApp() override;
 
   bool hasCustomOverlay() const override;
   uint16_t runningRenderIntervalMs() const override;

@@ -13,7 +13,7 @@
 #include "src/apps/CountdownApp.h"
 #include "src/apps/ClockApp.h"
 #include "src/apps/FemtoMinerApp.h"
-#include "src/apps/MiningManagerApp.h"
+#include "src/apps/DistributedMinerApp.h"
 #include "src/apps/MetronomeApp.h"
 #include "src/apps/WiFiSetupApp.h"
 #include "src/apps/EspContactsApp.h"
@@ -72,7 +72,7 @@ RandomNumberApp randomNumberApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 StopwatchApp stopwatchApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 ClockApp clockApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 FemtoMinerApp femtoMinerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
-MiningManagerApp miningManagerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
+DistributedMinerApp distributedMinerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 CountdownApp countdownApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 MetronomeApp metronomeApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 WiFiSetupApp wifiSetupApp(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -164,7 +164,7 @@ MenuEntry appsMenu[] = {
     {nullptr, MenuAction::Launch, &randomNumberApp},
     {nullptr, MenuAction::Launch, &metronomeApp},
     {nullptr, MenuAction::Launch, &femtoMinerApp},
-    {nullptr, MenuAction::Launch, &miningManagerApp},
+    {nullptr, MenuAction::Launch, &distributedMinerApp},
     {nullptr, MenuAction::Launch, &espContactsApp},
     {nullptr, MenuAction::Launch, &communicatorApp},
     {nullptr, MenuAction::Launch, &mouseEmulatorApp},
@@ -208,7 +208,7 @@ App* autoLaunchChoices[] = {
     &randomNumberApp,
     &metronomeApp,
     &femtoMinerApp,
-    &miningManagerApp,
+    &distributedMinerApp,
     &espContactsApp,
     &communicatorApp,
     &mouseEmulatorApp,
@@ -712,43 +712,43 @@ void handleSerialCommand(String command) {
 
   if (command.equalsIgnoreCase("cluster start")) {
     if (activeApp == nullptr) {
-      launchApp(miningManagerApp, millis());
+      launchApp(distributedMinerApp, millis());
     }
-    if (activeApp == &miningManagerApp) {
-      miningManagerApp.debugStartCluster();
+    if (activeApp == &distributedMinerApp) {
+      distributedMinerApp.debugStartCluster();
     } else {
       Serial.println("[cluster] another app is active");
     }
     return;
   }
   if (command.equalsIgnoreCase("cluster stop")) {
-    miningManagerApp.debugStopCluster();
+    distributedMinerApp.debugStopCluster();
     return;
   }
   if (command.equalsIgnoreCase("cluster stats")) {
-    miningManagerApp.debugPrintStats();
+    distributedMinerApp.debugPrintStats();
     return;
   }
   if (command.equalsIgnoreCase("cluster pair")) {
     if (activeApp == nullptr) {
-      launchApp(miningManagerApp, millis());
+      launchApp(distributedMinerApp, millis());
     }
-    miningManagerApp.debugStartPairing();
+    distributedMinerApp.debugStartPairing();
     return;
   }
   if (command.equalsIgnoreCase("cluster reset")) {
     if (activeApp == nullptr) {
-      launchApp(miningManagerApp, millis());
+      launchApp(distributedMinerApp, millis());
     }
-    miningManagerApp.debugResetCluster();
+    distributedMinerApp.debugResetCluster();
     return;
   }
   if (command.equalsIgnoreCase("cluster local on")) {
-    miningManagerApp.debugSetLocalMining(true);
+    distributedMinerApp.debugSetLocalMining(true);
     return;
   }
   if (command.equalsIgnoreCase("cluster local off")) {
-    miningManagerApp.debugSetLocalMining(false);
+    distributedMinerApp.debugSetLocalMining(false);
     return;
   }
 

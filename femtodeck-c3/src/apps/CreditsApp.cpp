@@ -6,7 +6,7 @@
 
 namespace {
 constexpr uint8_t ABOUT_ITEM_COUNT = 2;
-constexpr uint8_t LICENSE_PAGE_COUNT = 4;
+constexpr uint8_t LICENSE_PAGE_COUNT = 5;
 
 struct CreditPage {
   const char* game;
@@ -42,6 +42,8 @@ const CreditPage CREDIT_PAGES[] = {
     {"Simon", "thedarkfalcon", nullptr},
     {"Pet Simulator", "thedarkfalcon", nullptr},
     {"Femto Clock", "thedarkfalcon", nullptr},
+    {"Femto Miner", "thedarkfalcon", nullptr},
+    {"Distributed Miner", "thedarkfalcon", nullptr},
     {"Counter", "thedarkfalcon", nullptr},
     {"Mouse Emulator", "thedarkfalcon", nullptr},
     {"Reading", "thedarkfalcon", nullptr},
@@ -167,6 +169,13 @@ void CreditsApp::drawLicense(U8G2& u8g2) {
       u8g2.drawStr(3, 29, "publish sell");
       u8g2.drawStr(3, 38, "as you want");
       break;
+    case 3:
+      u8g2.drawStr(3, 9, "MIT Parts");
+      u8g2.setFont(u8g2_font_4x6_tr);
+      u8g2.drawStr(3, 20, "NerdMiner");
+      u8g2.drawStr(3, 29, "mining code");
+      u8g2.drawStr(3, 38, "uses MIT");
+      break;
     default:
       u8g2.drawStr(3, 9, "No Warranty");
       u8g2.setFont(u8g2_font_4x6_tr);
@@ -182,7 +191,12 @@ void CreditsApp::drawCredits(U8G2& u8g2) {
   const CreditPage& credit = CREDIT_PAGES[page_];
 
   u8g2.setFont(u8g2_font_5x8_tr);
-  u8g2.drawStr(3, 9, credit.game);
+  if (u8g2.getStrWidth(credit.game) > static_cast<int>(width - 6)) {
+    u8g2.setFont(u8g2_font_4x6_tr);
+    u8g2.drawStr(3, 8, credit.game);
+  } else {
+    u8g2.drawStr(3, 9, credit.game);
+  }
 
   u8g2.setFont(u8g2_font_4x6_tr);
   if (credit.author2 != nullptr) {
