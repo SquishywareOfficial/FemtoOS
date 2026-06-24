@@ -5,7 +5,7 @@
 #include <NimBLEServer.h>
 #include <HIDTypes.h>
 
-#include "Version.h"
+#include "src/shared/Version.h"
 #include "src/shared/logic/MinerClusterLogic.h"
 #include "src/shared/logic/MouseEmulatorLogic.h"
 #include "src/shared/logic/MouseIdentityLogic.h"

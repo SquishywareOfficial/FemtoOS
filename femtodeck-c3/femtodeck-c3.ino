@@ -40,7 +40,7 @@
 #include "src/apps/WiFiSetupApp.h"
 #include "src/games/TinyGolfGame.h"
 #include "src/games/TowerStackerGame.h"
-#include "Version.h"
+#include "src/shared/Version.h"
 
 class U8G2_SSD1306_72X40_NONAME_F_HW_I2C : public U8G2 {
   public:

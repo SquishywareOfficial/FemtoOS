@@ -45,7 +45,7 @@
 #include "src/games/TowerStackerGame.h"
 
 #include "TDisplayUi.h"
-#include "Version.h"
+#include "src/shared/Version.h"
 
 static NimBLEUUID nimbleUuidLinkAnchor(static_cast<uint16_t>(0x1812));
 

@@ -2,7 +2,7 @@
 
 #include <U8g2lib.h>
 
-#include "../../Version.h"
+#include "../shared/Version.h"
 
 namespace {
 constexpr uint8_t ABOUT_ITEM_COUNT = 2;
