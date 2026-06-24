@@ -16,10 +16,11 @@ Use Chrome or Edge on a desktop computer. Mobile browsers usually do not expose 
 
 1. Connect the board over USB.
 2. Open the [web flasher](https://thedarkfalcon.github.io/femtodeck-esp32-c3/).
-3. Select the correct build.
-4. Click **Install**.
-5. Choose the board serial port.
-6. Wait for flashing to complete, then reset or reconnect the board if needed.
+3. Click **Install** on the card that matches your board.
+4. Choose the board serial port when the browser prompts for it.
+5. Wait for flashing to complete, then reset or reconnect the board if needed.
+
+The installer page has separate install buttons and manifests for each firmware target. The browser only asks for the USB serial port after you choose the board card.
 
 If the board is not detected or flashing fails, hold **BOOT** while plugging the board in, then try again.
 

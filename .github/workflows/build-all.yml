@@ -124,10 +124,63 @@ jobs:
         run: |
           mkdir -p site
           cp -R sim site/simulator
+          cp -R web/installer/. site/
+
+          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' femtodeck-c3/Version.h)"
+          if [[ -z "$build_text" ]]; then
+            build_text="latest"
+          fi
+          sed -i "s/__BUILD_TEXT__/${build_text}/g" site/index.html
+
+          cat > site/manifest-femtodeck-c3.json <<EOF
+          {
+            "name": "FemtoDeck C3",
+            "version": "${build_text}",
+            "builds": [
+              {
+                "chipFamily": "ESP32-C3",
+                "parts": [
+                  { "path": "firmware/femtodeck-c3-firmware/femtodeck-c3-merged.bin", "offset": 0 }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          cat > site/manifest-femto-c3-headless.json <<EOF
+          {
+            "name": "Femto C3 Headless",
+            "version": "${build_text}",
+            "builds": [
+              {
+                "chipFamily": "ESP32-C3",
+                "parts": [
+                  { "path": "firmware/femto-c3-headless-firmware/femto-c3-headless-merged.bin", "offset": 0 }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          cat > site/manifest-femtodeck-t-display.json <<EOF
+          {
+            "name": "FemtoDeck T-Display",
+            "version": "${build_text}",
+            "builds": [
+              {
+                "chipFamily": "ESP32",
+                "parts": [
+                  { "path": "firmware/femtodeck-t-display-firmware/femtodeck-t-display-merged.bin", "offset": 0 }
+                ]
+              }
+            ]
+          }
+          EOF
 
           cat > site/manifest.json <<EOF
           {
             "name": "FemtoDeck",
+            "version": "${build_text}",
             "builds": [
               {
                 "name": "FemtoDeck C3",
@@ -152,21 +205,6 @@ jobs:
               }
             ]
           }
-          EOF
-
-          # Basic index.html for flashing
-          cat > site/index.html <<'EOF'
-          <!doctype html>
-          <html>
-            <head><title>FemtoDeck Installer</title><script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script></head>
-            <body>
-              <h1>FemtoDeck Multi-Board Installer</h1>
-              <p>Select your board and click Install.</p>
-              <esp-web-install-button manifest="manifest.json"></esp-web-install-button>
-              <br><br>
-              <a href="simulator/">Open C3 Simulator</a>
-            </body>
-          </html>
           EOF
 
       - name: Upload Pages artifact

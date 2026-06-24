@@ -22,11 +22,11 @@ If you already have a supported ESP32 board and just want to put FemtoDeck on it
 
 1. Open the [web flasher](https://thedarkfalcon.github.io/femtodeck-esp32-c3/) in Chrome or Edge.
 2. Connect the board over USB.
-3. Pick the correct firmware:
+3. Click **Install** on the card that matches your board:
    - **FemtoDeck C3** for the ESP32-C3 0.42 inch OLED board.
    - **FemtoDeck T-Display** for the TENSTAR/LilyGO-style ESP32 T-Display.
    - **Femto C3 Headless** for no-screen ESP32-C3 boards used as Distributed Miner slaves.
-4. Click **Install** and choose the serial port.
+4. Choose the serial port when the browser prompts for it.
 5. If flashing fails, hold **BOOT** while plugging in the board, then try again.
 
 The web flasher uses the latest successful GitHub Pages deployment from `main`. Tagged [GitHub Releases](https://github.com/thedarkfalcon/femtodeck-esp32-c3/releases) are downloadable snapshots with ZIP files for manual flashing.
