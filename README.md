@@ -12,6 +12,7 @@ Quick links:
 - [Release notes](RELEASE_NOTES.md)
 - [Documentation index](docs/README.md)
 - [Flashing guide](docs/flashing.md)
+- [Mouse Emulator (Mouse Jiggler) guide](docs/mouse-emulator.md)
 - [Femto Miner guide](docs/femto-miner.md)
 - [Distributed Miner guide](docs/distributed-miner.md)
 
@@ -77,6 +78,7 @@ FemtoDeck includes arcade-style games, small utilities, settings tools, ESP-NOW 
 Radio and network utilities:
 
 - **WiFi Setup** saves up to five WiFi networks through a captive portal.
+- **Mouse Emulator (Mouse Jiggler)** advertises as a selectable Bluetooth HID mouse profile and performs occasional humanized movement sweeps. See the [Mouse Emulator guide](docs/mouse-emulator.md).
 - **ESP Contacts** exchanges saved initials over ESP-NOW and stores peer MAC addresses.
 - **Communicator** sends predefined ESP-NOW messages to **ALL** or a saved contact.
 - **Femto Miner** is a solo Stratum miner with wallet/pool setup. See the [Femto Miner guide](docs/femto-miner.md).

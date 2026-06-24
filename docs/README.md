@@ -5,6 +5,7 @@ Focused docs for FemtoDeck setup, flashing, and larger app workflows.
 ## User Guides
 
 - [Flashing FemtoDeck](flashing.md)
+- [Mouse Emulator (Mouse Jiggler)](mouse-emulator.md)
 - [Femto Miner](femto-miner.md)
 - [Distributed Miner](distributed-miner.md)
 
