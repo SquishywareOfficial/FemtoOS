@@ -93,11 +93,12 @@ void WiFiSetupApp::startPortal() {
   logic_.loadProfiles();
   scanNetworks();
 
-  WiFi.disconnect(true);
-  delay(500);
+  WiFi.disconnect(false, false);
+  WiFi.mode(WIFI_OFF);
+  delay(250);
   WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
 
   if (!WiFi.softAPConfig(AP_IP, AP_GATEWAY, AP_SUBNET) || !WiFi.softAP(AP_SSID, AP_PASS, AP_CHANNEL, false, 4)) {
     portalState_ = PortalState::Error;
@@ -105,7 +106,7 @@ void WiFiSetupApp::startPortal() {
     return;
   }
   esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
-  esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);
+  esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
 
   setupRoutes();
   dns_.start(DNS_PORT, "*", apIP_);

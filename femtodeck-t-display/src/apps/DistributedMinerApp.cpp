@@ -64,7 +64,14 @@ uint16_t DistributedMinerApp::runningRenderIntervalMs() const {
   return 500;
 }
 
+uint16_t DistributedMinerApp::staticRenderIntervalMs() const {
+  return 0;
+}
+
 bool DistributedMinerApp::wantsImmediateRender() const {
+  if (phase() == AppPhase::Start && (!startIntroPageRendered_ || startIntroPage() != lastStartIntroPage_)) {
+    return true;
+  }
   return dirty_;
 }
 
@@ -538,5 +545,7 @@ void DistributedMinerApp::drawStart(TFT_eSPI& tft) {
       TDisplayUi::footer(canvas, "B1 role  B2 start");
     }
   });
+  lastStartIntroPage_ = startIntroPage();
+  startIntroPageRendered_ = true;
   dirty_ = false;
 }

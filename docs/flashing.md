@@ -10,7 +10,7 @@ Use Chrome or Edge on a desktop computer. Mobile browsers usually do not expose 
 
 - **FemtoDeck C3**: ESP32-C3 with the 0.42 inch `72x40` OLED.
 - **FemtoDeck T-Display**: classic ESP32 T-Display with `240x135` color TFT.
-- **Femto C3 Headless**: no-screen ESP32-C3 used as a Distributed Miner slave.
+- **Femto C3 Headless**: no-screen ESP32-C3 with LED/button launcher, Mouse Emulator, and Distributed Miner slave.
 
 ## Browser Flashing
 
@@ -60,6 +60,86 @@ python -m esptool --chip esp32 --port COM6 --baud 460800 write_flash -z 0x0 femt
 ```
 
 On Linux/macOS, use the same commands with `python3` and a serial device such as `/dev/ttyACM0` or `/dev/ttyUSB0`.
+
+## Manual Flashing After A Local Build
+
+Run these commands from the repository root.
+
+First build everything locally. This also installs the Arduino ESP32 core, required libraries, and syncs the root `shared/` folder into each sketch before compiling:
+
+Windows:
+
+```powershell
+.\build.ps1
+```
+
+Linux/macOS:
+
+```sh
+./build.sh
+```
+
+Then find the board serial port:
+
+```powershell
+arduino-cli board list
+```
+
+Upload the matching sketch with `arduino-cli`:
+
+```powershell
+arduino-cli upload --fqbn esp32:esp32:esp32c3:PartitionScheme=huge_app --port COM9 femtodeck-c3
+```
+
+```powershell
+arduino-cli upload --fqbn esp32:esp32:esp32c3:PartitionScheme=huge_app --port COM9 femto-c3-headless
+```
+
+```powershell
+arduino-cli upload --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --port COM6 femtodeck-t-display
+```
+
+Replace `COM9` / `COM6` with the port from `arduino-cli board list`. On Linux/macOS, use a serial device such as `/dev/ttyACM0` or `/dev/ttyUSB0`.
+
+### Optional: Create A Local Merged Binary
+
+The normal local build scripts compile the sketches, but release-style merged binaries are created by compiling with `--export-binaries`.
+
+Examples:
+
+```powershell
+arduino-cli compile --export-binaries --fqbn esp32:esp32:esp32c3:PartitionScheme=huge_app femtodeck-c3
+```
+
+```powershell
+arduino-cli compile --export-binaries --fqbn esp32:esp32:esp32c3:PartitionScheme=huge_app femto-c3-headless
+```
+
+```powershell
+arduino-cli compile --export-binaries --fqbn esp32:esp32:esp32:PartitionScheme=huge_app femtodeck-t-display
+```
+
+Find the generated merged binary:
+
+```powershell
+Get-ChildItem . -Recurse -Filter *.merged.bin
+```
+
+Then flash it with `esptool`, using the correct chip family:
+
+```powershell
+python -m esptool --chip esp32c3 --port COM9 --baud 460800 write_flash -z 0x0 .\femtodeck-c3\build\...\femtodeck-c3.ino.merged.bin
+```
+
+```powershell
+python -m esptool --chip esp32c3 --port COM9 --baud 460800 write_flash -z 0x0 .\femto-c3-headless\build\...\femto-c3-headless.ino.merged.bin
+```
+
+```powershell
+python -m esptool --chip esp32 --port COM6 --baud 460800 write_flash -z 0x0 .\femtodeck-t-display\build\...\femtodeck-t-display.ino.merged.bin
+```
+
+The `...\` in those paths is a placeholder for the board build folder printed by `Get-ChildItem`; use the actual merged binary path on your machine.
 
 ## Finding The Serial Port
 

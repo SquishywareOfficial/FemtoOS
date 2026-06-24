@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Preferences.h>
+#include <NimBLEUUID.h>
 
 #include "App.h"
 #include "src/apps/CounterApp.h"
@@ -9,6 +10,7 @@
 #include "src/apps/DiceRollerApp.h"
 #include "src/apps/CoinFlipperApp.h"
 #include "src/apps/RandomNumberApp.h"
+#include "src/apps/ScreenSaverApp.h"
 #include "src/apps/StopwatchApp.h"
 #include "src/apps/CountdownApp.h"
 #include "src/apps/ClockApp.h"
@@ -45,6 +47,8 @@
 #include "TDisplayUi.h"
 #include "Version.h"
 
+static NimBLEUUID nimbleUuidLinkAnchor(static_cast<uint16_t>(0x1812));
+
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite* menuFrameSprite = nullptr;
 bool menuFrameReady = false;
@@ -69,6 +73,7 @@ MouseEmulatorApp mouseEmulatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 DiceRollerApp diceRollerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 CoinFlipperApp coinFlipperApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 RandomNumberApp randomNumberApp(SCREEN_WIDTH, SCREEN_HEIGHT);
+ScreenSaverApp screenSaverApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 StopwatchApp stopwatchApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 ClockApp clockApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 FemtoMinerApp femtoMinerApp(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -162,6 +167,7 @@ MenuEntry appsMenu[] = {
     {nullptr, MenuAction::Launch, &diceRollerApp},
     {nullptr, MenuAction::Launch, &coinFlipperApp},
     {nullptr, MenuAction::Launch, &randomNumberApp},
+    {nullptr, MenuAction::Launch, &screenSaverApp},
     {nullptr, MenuAction::Launch, &metronomeApp},
     {nullptr, MenuAction::Launch, &femtoMinerApp},
     {nullptr, MenuAction::Launch, &distributedMinerApp},
@@ -206,6 +212,7 @@ App* autoLaunchChoices[] = {
     &diceRollerApp,
     &coinFlipperApp,
     &randomNumberApp,
+    &screenSaverApp,
     &metronomeApp,
     &femtoMinerApp,
     &distributedMinerApp,
@@ -515,14 +522,17 @@ void exitActiveAppToMenu(uint32_t nowMs, bool b1, bool b2) {
 
 void renderActiveAppIfDue(uint32_t nowMs) {
   const AppPhase currentPhase = activeApp->phase();
-  const uint16_t interval = currentPhase == AppPhase::Running ? activeApp->runningRenderIntervalMs() : APP_STATIC_RENDER_MS;
-  if (!activeApp->wantsImmediateRender() && !appRenderDue && currentPhase == lastRenderedAppPhase && nowMs < nextAppRenderMs) {
+  const uint16_t interval = currentPhase == AppPhase::Running ? activeApp->runningRenderIntervalMs() : activeApp->staticRenderIntervalMs();
+  const bool timedRenderEnabled = interval > 0;
+  const bool wantsImmediate = activeApp->wantsImmediateRender();
+  if (!wantsImmediate && !appRenderDue && currentPhase == lastRenderedAppPhase &&
+      (!timedRenderEnabled || nowMs < nextAppRenderMs)) {
     return;
   }
   activeApp->render(tft);
   appRenderDue = false;
   lastRenderedAppPhase = currentPhase;
-  nextAppRenderMs = nowMs + interval;
+  nextAppRenderMs = timedRenderEnabled ? nowMs + interval : UINT32_MAX;
 }
 
 void drawAutoLaunchNotice() {
