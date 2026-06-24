@@ -54,6 +54,7 @@ class App {
         void tick(uint32_t nowMs, bool button1Down, bool button2Down);
         virtual void render(TFT_eSPI& tft);
         virtual uint16_t runningRenderIntervalMs() const;
+        virtual bool wantsImmediateRender() const;
 
         bool shouldExitToMenu() const;
         void clearExitRequest();
@@ -66,16 +67,17 @@ class App {
 
     protected:
         virtual void onAppReset();
+        virtual bool updateStart(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2);
         virtual void updateRunning(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) = 0;
         virtual void drawRunning(TFT_eSPI& tft) = 0;
         virtual void drawStart(TFT_eSPI& tft);
         virtual void drawEnd(TFT_eSPI& tft);
         virtual bool startsRunningImmediately() const;
         virtual bool consumesButton2HoldInRunning() const;
-
-    private:
+        virtual void onAppExit();
         void startRunning();
 
+    private:
         AppPhase phase_ = AppPhase::Start;
         SingleButton button1_;
         SingleButton button2_;

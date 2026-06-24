@@ -1,5 +1,104 @@
 # Release Notes
 
+## v2.0 b77
+
+- Added T-Display slave mode to the Distributed Miner app, with a role selector before launch.
+- Added native T-Display slave pages for status, work rate, assignment debug data, pairing reset, and exit.
+- Kept T-Display serial cluster commands master-oriented by forcing the app back to master mode before debug start/pair/reset actions.
+- Tuned Distributed Miner nonce assignments so fast slaves receive larger work ranges based on their reported hashrate, reducing ESP-NOW assignment overhead.
+- Renamed the T-Display cluster utility internals to `Distributed Miner` so C3 and T-Display use the same user-facing app name.
+- Updated About / License and Credits so NerdMiner-derived MIT portions, Femto Miner, and Distributed Miner are represented on device.
+
+## v2.0 b76
+
+- Changed T-Display City Racer to keep its framebuffer once allocated instead of releasing and reallocating it between runs.
+- Added a 4-bit full-screen sprite fallback for City Racer so it still avoids direct TFT drawing if the 8-bit framebuffer cannot be allocated.
+- Removed redundant per-frame sprite clearing in City Racer and added serial diagnostics showing the sprite depth in use.
+- Added automatic Femto Miner retry/backoff after WiFi, pool connection, subscribe, or pool disconnect failures so transient errors recover without manual restart.
+- Fixed Distributed Miner slave pairing by refreshing the ESP-NOW master peer when the slave hops to the master's WiFi channel, allowing the master to receive C3 hello/status packets and assign work.
+- Changed the T-Display `cluster pair` debug command to start the cluster engine before opening pairing, avoiding an idle `channel=0` pairing state.
+- Updated the headless C3 miner LED behavior for active-low GPIO8 boards and documented the LED states, BOOT pairing reset, and serial status output.
+
+## v2.0 b75
+
+- Fixed T-Display City Racer falling back to tearing-prone direct TFT drawing after a one-time sprite allocation failure.
+- Changed City Racer to retry its 8-bit sprite framebuffer, clear the sprite before each frame, and release the sprite when leaving the app.
+
+## v2.0 b74
+
+- Fixed T-Display Distributed Miner page rendering so dashboard, slave list, pool, pairing, and control pages clear through the same sprite-backed pattern as Femto Miner.
+- Added immediate redraw and forced clear handling to Distributed Miner page/action changes to remove stale text between pages.
+- Clarified the Distributed Miner pairing screen so it shows when pairing is requested but the ESP-NOW radio is still waiting for WiFi/radio startup.
+
+## v2.0 b73
+
+- Clarified T-Display Femto Miner dashboard and Shares page wording so pool jobs are shown separately from submitted/accepted/rejected shares.
+- Forced share counters to render explicit zero values, avoiding the impression that received pool jobs should each have an OK/rejected status.
+
+## v2.0 b72
+
+- Changed the T-Display Femto Miner BTC price flow so it automatically tries to fetch a cached price when entering the BTC page.
+- Changed T-Display Femto Miner start/autostart to attempt a BTC price fetch before starting the CPU-intensive mining workers.
+- Added CPU temperature to the T-Display Femto Miner Session page and optional serial miner logs.
+- Tuned T-Display Femto Miner workers for better button responsiveness while mining by reducing nonce batch sizes and lowering worker priorities.
+- Hardened T-Display Femto Miner rendering so the framebuffer retries allocation, clears before each page draw, and autostart mining waits until after the first UI frame.
+
+## v2.0 b71
+
+- Expanded the T-Display Femto Miner into multiple status pages for dashboard rate, shares/jobs, session totals, lifetime totals, pool state, BTC price lookup, setup, and reset.
+- Added persisted T-Display miner lifetime totals for hashes, mining duration, jobs, submitted shares, accepted shares, and rejected shares.
+- Added a manual BTC price lookup page using the public mempool.space prices endpoint when WiFi is connected.
+- Improved T-Display Femto Miner page transitions by adding an immediate-render hook and forcing a panel clear on miner mode/page changes.
+- Changed T-Display miner serial hashrate logging to opt-in with `miner logs on|off`; `miner stats` remains available for manual snapshots.
+- Added `Miner Stats` to the T-Display Save Manager so persisted miner totals can be cleared separately from wallet/pool settings.
+
+## v2.0 b70
+
+- Added a T-Display **Distributed Miner** utility for ESP-NOW cluster mining, separate from the existing solo Femto Miner app.
+- Added shared cluster protocol and mining logic for master beacons, pairing, slave status, nonce-range assignments, work results, local master mining, and pool share submission.
+- Added a generic `femto-c3-headless` ESP32-C3 sketch; its first role is a no-display Miner Slave with GPIO8 LED status and BOOT long-hold pairing reset.
+- Added a persisted cluster `Local Mining` setting so the T-Display master can mine locally or act mostly as a coordination node during testing.
+- Added `cluster start`, `cluster stop`, `cluster stats`, `cluster pair`, and `cluster local on|off` serial debug commands.
+- Added the headless C3 build to CI artifacts and the browser installer manifest.
+
+## v2.0 b69
+
+- Replaced the T-Display debug-only autolaunch preference with a generic `Autolaunch` Settings app.
+- Added persisted T-Display autolaunch fields for enabled/disabled, selected app/game, and generic auto-run behavior.
+- Migrated the previous debug `auto_app` / `auto_miner` preferences into the new `autolaunch` namespace so existing Femto Miner autolaunch settings survive the upgrade.
+- Changed T-Display boot flow so the FemtoDeck splash always appears first, followed by a cancellable `Autolaunching <app>` screen when autolaunch is enabled.
+- Kept serial autolaunch commands as shortcuts, but changed status output to `autolaunch_enabled`, `autolaunch_app`, and `autolaunch_autorun` instead of miner-specific wording.
+
+## v2.0 b68
+
+- Added a second Femto Miner worker on classic ESP32/T-Display: the main miner task keeps the hardware SHA path while a secondary software worker searches a separate nonce range and queues found shares back to the Stratum owner.
+- Kept ESP32-C3 on the single-worker path so the one-core board does not lose UI/WiFi responsiveness to an extra mining task.
+- Tuned T-Display miner task priorities after hardware tests; the stable unpinned worker configuration measured about `355 KH/s`, up from the previous `318-319 KH/s`.
+- Tested pinned software-worker variants and rejected them: core 0 reduced throughput, while core 1 starved UI/serial stats.
+
+## v2.0 b67
+
+- Added a T-Display debug autolaunch preference so the firmware can boot straight into a named app for serial profiling.
+- Added serial debug commands for listing launchable apps, setting/clearing autolaunch, launching an app, and starting/stopping Femto Miner.
+- Added Femto Miner serial stats output once per second while mining, including state, hashrate, totals, shares, uptime, pool, and last error.
+- Added a persisted Femto Miner autostart flag for benchmarking, plus B2-at-boot autolaunch suppression as a recovery path.
+
+## v2.0 b66
+
+- Reworked Femto Miner hashing to use NerdMiner's baked SHA path instead of generic per-hash mbedTLS setup.
+- Added a classic ESP32 hardware-SHA fast path for T-Display mining, matching NerdMiner's SHA peripheral approach much more closely.
+- Batched Femto Miner hash stats updates so the worker no longer enters a critical section for every nonce.
+- Fixed T-Display Femto Miner page ghosting by forcing landscape rotation before rendering/pushing the miner dashboard sprite.
+
+## v2.0 b65
+
+- Added Femto Miner as a native utility on both T-Display and C3, with shared miner settings, worker-name generation, Stratum connection handling, cooperative SHA mining loop, and live status stats.
+- Added a dedicated Femto Miner setup portal for wallet, pool host, port, and pool password settings, using `FemtoMiner Setup` instead of replacing the existing WiFi Setup flow.
+- Added on-device Miner settings reset screens on both board targets.
+- Added Miner settings to Save Manager and documented the default pool, wallet, worker naming, and NerdMiner_v2 MIT attribution.
+- Added ArduinoJson to the documented and CI-installed Arduino library dependencies for Stratum message parsing.
+- Added the `onAppExit()` lifecycle hook so apps with background workers, sockets, APs, or radio sessions can stop cleanly when exiting to the menu.
+
 ## v2.0 b64
 
 - Reworked T-Display Breakout '76 running rendering to use an 8-bit sprite framebuffer, reducing visible full-screen tearing during play.

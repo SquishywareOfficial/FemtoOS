@@ -34,6 +34,10 @@ const SaveEntry SAVE_ENTRIES[] = {
     {"Simon", "simon"},
     {"Pet", "pet"},
     {"Clock", "clock"},
+    {"Miner", "miner"},
+    {"Miner Stats", "miner_stats"},
+    {"Cluster", "cluster"},
+    {"WiFi", "wifi"},
     {"Contacts", "contacts"},
 };
 

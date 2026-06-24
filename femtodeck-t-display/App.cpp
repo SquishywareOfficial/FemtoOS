@@ -82,6 +82,9 @@ void App::tick(uint32_t nowMs, bool button1Down, bool button2Down) {
 
     switch (phase_) {
         case AppPhase::Start:
+            if (updateStart(deltaMs, b1, b2)) {
+                break;
+            }
             if (b1.click || b1.longPress || b1.longPress) {
                 startRunning();
             }
@@ -124,6 +127,10 @@ uint16_t App::runningRenderIntervalMs() const {
     return 33;
 }
 
+bool App::wantsImmediateRender() const {
+    return false;
+}
+
 bool App::shouldExitToMenu() const {
     return exitToMenuRequested_;
 }
@@ -161,10 +168,20 @@ void App::endApp() {
 }
 
 void App::requestExitToMenu() {
+    if (!exitToMenuRequested_) {
+        onAppExit();
+    }
     exitToMenuRequested_ = true;
 }
 
 void App::onAppReset() {}
+
+bool App::updateStart(uint32_t deltaMs, const ButtonInput& b1, const ButtonInput& b2) {
+    (void)deltaMs;
+    (void)b1;
+    (void)b2;
+    return false;
+}
 
 void App::drawStart(TFT_eSPI& tft) {
     (void)tft;
@@ -181,6 +198,8 @@ bool App::startsRunningImmediately() const {
 bool App::consumesButton2HoldInRunning() const {
     return false;
 }
+
+void App::onAppExit() {}
 
 void App::startRunning() {
     appEnded_ = false;

@@ -74,6 +74,9 @@ void App::tick(uint32_t nowMs, bool buttonDown) {
     switch (phase_) {
         case AppPhase::Start:
             // allow either a click or a long press to start a game (useful for timers)
+            if (updateStart(deltaMs, input)) {
+                break;
+            }
             if (input.click || input.longPress) {
                 startRunning();
             }
@@ -90,7 +93,7 @@ void App::tick(uint32_t nowMs, bool buttonDown) {
                 break;
             }
             if (input.longPress) {
-                exitToMenuRequested_ = true;
+                requestExitToMenu();
                 phase_ = AppPhase::Start;
                 phaseStartedAtMs_ = nowMs;
             } else if (input.click) {
@@ -112,6 +115,10 @@ void App::render(U8G2& u8g2) {
             drawEnd(u8g2);
             break;
     }
+}
+
+uint16_t App::runningRenderIntervalMs() const {
+    return 33;
 }
 
 bool App::shouldExitToMenu() const {
@@ -151,10 +158,19 @@ void App::endApp() {
 }
 
 void App::requestExitToMenu() {
+    if (!exitToMenuRequested_) {
+        onAppExit();
+    }
     exitToMenuRequested_ = true;
 }
 
 void App::onAppReset() {}
+
+bool App::updateStart(uint32_t deltaMs, const ButtonInput& input) {
+    (void)deltaMs;
+    (void)input;
+    return false;
+}
 
 void App::drawStart(U8G2& u8g2) {
     (void)u8g2;
@@ -167,6 +183,8 @@ void App::drawEnd(U8G2& u8g2) {
 bool App::startsRunningImmediately() const {
     return false;
 }
+
+void App::onAppExit() {}
 
 void App::startRunning() {
     appEnded_ = false;

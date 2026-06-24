@@ -25,6 +25,9 @@ jobs:
           - board: femtodeck-t-display
             fqbn: esp32:esp32:esp32:PartitionScheme=huge_app
             chip: esp32
+          - board: femto-c3-headless
+            fqbn: esp32:esp32:esp32c3:PartitionScheme=huge_app
+            chip: esp32c3
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,7 +43,14 @@ jobs:
         run: arduino-cli core update-index && arduino-cli core install esp32:esp32
 
       - name: Install libraries
-        run: arduino-cli lib install U8g2 "NimBLE-Arduino" "TFT_eSPI"
+        run: arduino-cli lib install U8g2 "NimBLE-Arduino" "TFT_eSPI" ArduinoJson
+
+      - name: Prepare shared code
+        shell: bash
+        run: |
+          rm -rf "${{ matrix.board }}/src/shared"
+          mkdir -p "${{ matrix.board }}/src"
+          cp -R shared "${{ matrix.board }}/src/shared"
 
       - name: Compile sketch
         run: arduino-cli compile --export-binaries --fqbn ${{ matrix.fqbn }} ${{ matrix.board }}
@@ -56,11 +66,15 @@ jobs:
           # Use find to locate build artifacts and copy them to dist
           find ${{ matrix.board }}/build -name "*.bin" -exec cp {} "$firmware_dir/" \;
 
-          # Find the merged binary specifically if it exists (C3 core often generates it)
+          # Find the merged binary specifically and copy it to a stable release name.
+          # The browser installer and helper scripts use the merged image so fresh
+          # devices get bootloader, partition table, boot app, and sketch together.
           merged_bin=$(find ${{ matrix.board }}/build -name "*.merged.bin" | head -n 1)
-          if [[ -n "$merged_bin" ]]; then
-            cp "$merged_bin" "$firmware_dir/${{ matrix.board }}-merged.bin"
+          if [[ -z "$merged_bin" ]]; then
+            echo "Merged binary not found for ${{ matrix.board }}" >&2
+            exit 1
           fi
+          cp "$merged_bin" "$firmware_dir/${{ matrix.board }}-merged.bin"
 
           build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' ${{ matrix.board }}/Version.h)"
           if [[ -z "$build_text" ]]; then
@@ -78,7 +92,7 @@ jobs:
             cat > "$firmware_dir/flash-windows.bat" <<EOF
             @echo off
             python -m pip install --upgrade esptool
-            python -m esptool --chip esp32 --port %1 --baud 460800 write_flash -z 0x10000 ${{ matrix.board }}.ino.bin
+            python -m esptool --chip esp32 --port %1 --baud 460800 write_flash -z 0x0 ${{ matrix.board }}-merged.bin
           EOF
           fi
 
@@ -113,15 +127,24 @@ jobs:
             "name": "FemtoDeck",
             "builds": [
               {
+                "name": "FemtoDeck C3",
                 "chipFamily": "ESP32-C3",
                 "parts": [
                   { "path": "firmware/femtodeck-c3-firmware/femtodeck-c3-merged.bin", "offset": 0 }
                 ]
               },
               {
+                "name": "Femto C3 Headless",
+                "chipFamily": "ESP32-C3",
+                "parts": [
+                  { "path": "firmware/femto-c3-headless-firmware/femto-c3-headless-merged.bin", "offset": 0 }
+                ]
+              },
+              {
+                "name": "FemtoDeck T-Display",
                 "chipFamily": "ESP32",
                 "parts": [
-                  { "path": "firmware/femtodeck-t-display-firmware/femtodeck-t-display.ino.bin", "offset": 65536 }
+                  { "path": "firmware/femtodeck-t-display-firmware/femtodeck-t-display-merged.bin", "offset": 0 }
                 ]
               }
             ]

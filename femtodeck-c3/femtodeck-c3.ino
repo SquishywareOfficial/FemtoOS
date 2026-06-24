@@ -15,8 +15,10 @@
 #include "src/apps/CounterApp.h"
 #include "src/apps/CreditsApp.h"
 #include "src/apps/DiceRollerApp.h"
+#include "src/apps/DistributedMinerApp.h"
 #include "src/apps/EspContactsApp.h"
 #include "src/games/FemtoFieldGame.h"
+#include "src/apps/FemtoMinerApp.h"
 #include "src/games/FishingFlickGame.h"
 #include "src/games/KnifeThrowGame.h"
 #include "src/games/MazeRunnerGame.h"
@@ -34,6 +36,7 @@
 #include "src/apps/ReadingApp.h"
 #include "src/games/SimonGame.h"
 #include "src/apps/StopwatchApp.h"
+#include "src/apps/WiFiSetupApp.h"
 #include "src/games/TinyGolfGame.h"
 #include "src/games/TowerStackerGame.h"
 #include "Version.h"
@@ -79,6 +82,8 @@ SimonGame simonGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 
 StopwatchApp stopwatchApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 ClockApp clockApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+FemtoMinerApp femtoMinerApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+DistributedMinerApp distributedMinerApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 CountdownApp countdownApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 CounterApp counterApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 MouseEmulatorApp mouseEmulatorApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
@@ -90,6 +95,7 @@ MetronomeApp metronomeApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 PetSimulatorApp petSimulatorApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 EspContactsApp espContactsApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 CommunicatorApp communicatorApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+WiFiSetupApp wifiSetupApp(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 
 OptionsApp optionsApp(APP_WIDTH, APP_HEIGHT);
 CreditsApp creditsApp(APP_WIDTH, APP_HEIGHT);
@@ -97,12 +103,14 @@ CreditsApp creditsApp(APP_WIDTH, APP_HEIGHT);
 enum class MenuView {
   Root,
   Games,
-  Utilities
+  Utilities,
+  Settings
 };
 
 enum class MenuAction {
   OpenGames,
   OpenUtilities,
+  OpenSettings,
   Launch,
   Back
 };
@@ -116,7 +124,7 @@ struct MenuEntry {
 MenuEntry rootMenu[] = {
     {"Games", MenuAction::OpenGames, nullptr},
     {"Utilities", MenuAction::OpenUtilities, nullptr},
-    {nullptr, MenuAction::Launch, &optionsApp},
+    {"Settings", MenuAction::OpenSettings, nullptr},
     {nullptr, MenuAction::Launch, &creditsApp},
 };
 
@@ -152,6 +160,8 @@ MenuEntry utilitiesMenu[] = {
     {nullptr, MenuAction::Launch, &coinFlipperApp},
     {nullptr, MenuAction::Launch, &randomNumberApp},
     {nullptr, MenuAction::Launch, &metronomeApp},
+    {nullptr, MenuAction::Launch, &femtoMinerApp},
+    {nullptr, MenuAction::Launch, &distributedMinerApp},
     {nullptr, MenuAction::Launch, &espContactsApp},
     {nullptr, MenuAction::Launch, &communicatorApp},
     {nullptr, MenuAction::Launch, &mouseEmulatorApp},
@@ -159,9 +169,16 @@ MenuEntry utilitiesMenu[] = {
     {"Back", MenuAction::Back, nullptr},
 };
 
+MenuEntry settingsMenu[] = {
+    {nullptr, MenuAction::Launch, &optionsApp},
+    {nullptr, MenuAction::Launch, &wifiSetupApp},
+    {"Back", MenuAction::Back, nullptr},
+};
+
 constexpr uint8_t ROOT_MENU_COUNT = sizeof(rootMenu) / sizeof(rootMenu[0]);
 constexpr uint8_t GAMES_MENU_COUNT = sizeof(gamesMenu) / sizeof(gamesMenu[0]);
 constexpr uint8_t UTILITIES_MENU_COUNT = sizeof(utilitiesMenu) / sizeof(utilitiesMenu[0]);
+constexpr uint8_t SETTINGS_MENU_COUNT = sizeof(settingsMenu) / sizeof(settingsMenu[0]);
 
 SingleButton menuButton;
 MenuView currentMenu = MenuView::Root;
@@ -172,6 +189,9 @@ bool bootSplashActive = true;
 bool bootSkipReleasePending = false;
 uint32_t bootStartedAtMs = 0;
 App* activeApp = nullptr;
+bool appRenderDue = false;
+uint32_t nextAppRenderMs = 0;
+AppPhase lastRenderedAppPhase = AppPhase::Start;
 
 bool isButtonDown() {
   return digitalRead(BUTTON_PIN) == LOW;
@@ -183,6 +203,8 @@ const MenuEntry* currentMenuEntries() {
       return gamesMenu;
     case MenuView::Utilities:
       return utilitiesMenu;
+    case MenuView::Settings:
+      return settingsMenu;
     case MenuView::Root:
     default:
       return rootMenu;
@@ -195,6 +217,8 @@ uint8_t currentMenuCount() {
       return GAMES_MENU_COUNT;
     case MenuView::Utilities:
       return UTILITIES_MENU_COUNT;
+    case MenuView::Settings:
+      return SETTINGS_MENU_COUNT;
     case MenuView::Root:
     default:
       return ROOT_MENU_COUNT;
@@ -207,6 +231,8 @@ const char* currentMenuTitle() {
       return "Games";
     case MenuView::Utilities:
       return "Utilities";
+    case MenuView::Settings:
+      return "Settings";
     case MenuView::Root:
     default:
       return "FemtoDeck";
@@ -280,6 +306,9 @@ void launchApp(App& app, uint32_t nowMs, bool buttonDown) {
   activeReturnMenu = currentMenu;
   activeApp = &app;
   activeApp->begin(nowMs, buttonDown);
+  appRenderDue = true;
+  nextAppRenderMs = nowMs;
+  lastRenderedAppPhase = activeApp->phase();
   menuSelectArmed = false;
 }
 
@@ -291,6 +320,9 @@ void selectMenuEntry(uint32_t nowMs, bool buttonDown) {
       break;
     case MenuAction::OpenUtilities:
       openMenu(MenuView::Utilities);
+      break;
+    case MenuAction::OpenSettings:
+      openMenu(MenuView::Settings);
       break;
     case MenuAction::Back:
       openMenu(MenuView::Root);
@@ -353,8 +385,7 @@ void setup(void) {
 void loop(void) {
   const uint32_t nowMs = millis();
   const bool buttonDown = isButtonDown();
-
-  u8g2.clearBuffer();
+  bool shouldDraw = true;
 
   if (bootSplashActive && (buttonDown || (nowMs - bootStartedAtMs) >= BOOT_SPLASH_MS)) {
     bootSplashActive = false;
@@ -363,8 +394,10 @@ void loop(void) {
   }
 
   if (bootSplashActive) {
+    u8g2.clearBuffer();
     drawBootSplash();
   } else if (activeApp == nullptr) {
+    u8g2.clearBuffer();
     if (bootSkipReleasePending) {
       if (!buttonDown) {
         bootSkipReleasePending = false;
@@ -376,18 +409,43 @@ void loop(void) {
     drawMenu();
   } else {
     activeApp->tick(nowMs, buttonDown);
-    activeApp->render(u8g2);
-    if (activeApp->phase() != AppPhase::Running && !activeApp->hasCustomOverlay()) {
-      drawAppOverlay(*activeApp);
+    const AppPhase currentPhase = activeApp->phase();
+    if (currentPhase != lastRenderedAppPhase) {
+      lastRenderedAppPhase = currentPhase;
+      appRenderDue = true;
+      nextAppRenderMs = nowMs;
     }
+
+    uint16_t intervalMs = 250;
+    if (currentPhase == AppPhase::Running) {
+      intervalMs = activeApp->runningRenderIntervalMs();
+    }
+
+    if (appRenderDue || static_cast<int32_t>(nowMs - nextAppRenderMs) >= 0) {
+      u8g2.clearBuffer();
+      activeApp->render(u8g2);
+      if (activeApp->phase() != AppPhase::Running && !activeApp->hasCustomOverlay()) {
+        drawAppOverlay(*activeApp);
+      }
+      appRenderDue = false;
+      nextAppRenderMs = nowMs + intervalMs;
+    } else {
+      shouldDraw = false;
+    }
+
     if (activeApp->shouldExitToMenu()) {
       activeApp->clearExitRequest();
       activeApp = nullptr;
       currentMenu = activeReturnMenu;
       menuSelectArmed = false;
       menuButton.reset(buttonDown, nowMs);
+      appRenderDue = false;
     }
   }
 
-  u8g2.sendBuffer();
+  if (shouldDraw) {
+    u8g2.sendBuffer();
+  } else {
+    delay(1);
+  }
 }
