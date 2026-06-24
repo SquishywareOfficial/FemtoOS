@@ -76,7 +76,7 @@ jobs:
           fi
           cp "$merged_bin" "$firmware_dir/${{ matrix.board }}-merged.bin"
 
-          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' ${{ matrix.board }}/Version.h)"
+          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' shared/Version.h)"
           if [[ -z "$build_text" ]]; then
             build_text="local-build"
           fi
@@ -126,7 +126,7 @@ jobs:
           cp -R sim site/simulator
           cp -R web/installer/. site/
 
-          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' femtodeck-c3/Version.h)"
+          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' shared/Version.h)"
           if [[ -z "$build_text" ]]; then
             build_text="latest"
           fi
@@ -237,7 +237,7 @@ jobs:
 
           mkdir -p release-dist
 
-          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' femtodeck-c3/Version.h)"
+          build_text="$(sed -nE 's/.*BUILD_TEXT = "([^"]+)".*/\1/p' shared/Version.h)"
           if [[ -z "$build_text" ]]; then
             build_text="${GITHUB_REF_NAME}"
           fi

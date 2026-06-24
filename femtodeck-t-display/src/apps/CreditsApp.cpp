@@ -3,7 +3,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../TDisplayUi.h"
-#include "../../Version.h"
+#include "../shared/Version.h"
 
 namespace {
 constexpr uint8_t ABOUT_ITEM_COUNT = 2;

@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 #include <esp_now.h>
-#include "../../../Version.h"
+#include "../Version.h"
 
 class CommunicatorLogic {
 public:
