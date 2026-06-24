@@ -1,5 +1,17 @@
 # Release Notes
 
+## v2.0 b78
+
+- Changed the headless ESP32-C3 build from a single-purpose miner slave into a tiny LED/button launcher with Mouse Emulator and Slave Miner apps.
+- Added a headless Bluetooth Mouse Emulator that advertises as `Logitech Signature M650`, uses the shared humanized movement logic, and can be selected as the saved autolaunch app.
+- Added headless LED menu and app-state patterns, including app markers, autolaunch selection by double tap, miner pairing reset by triple tap, and 5-second hold-to-menu behavior.
+- Changed fresh headless ESP32-C3 boards to start in the LED menu instead of defaulting to Slave Miner autolaunch.
+- Added headless Mouse Emulator triple-tap pairing reset, which clears stored BLE bonds, rotates the BLE address, and restarts advertising.
+- Added a short off separator between the headless app marker blink and the app state pattern so solid-on states do not visually merge together.
+- Added LED-menu double-tap on headless C3 to clear the saved autolaunch app, making the LED menu the boot default again.
+- Improved T-Display WiFi Setup AP startup by fully cycling WiFi before AP mode, increasing AP TX power, and allowing 802.11n to reduce client-side "incorrect password" handshake failures.
+- Restored the direct NimBLE UUID link anchor in the T-Display build so Mouse Emulator BLE symbols link reliably with Arduino's dependency scanner.
+
 ## v2.0 b77
 
 - Added T-Display slave mode to the Distributed Miner app, with a role selector before launch.

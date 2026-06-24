@@ -20,6 +20,7 @@ public:
 
   bool hasCustomOverlay() const override;
   uint16_t runningRenderIntervalMs() const override;
+  uint16_t staticRenderIntervalMs() const override;
   bool wantsImmediateRender() const override;
 
   void debugStartCluster();
@@ -103,5 +104,7 @@ private:
   uint8_t page_ = 0;
   bool dirty_ = true;
   bool forceScreenClear_ = true;
+  bool startIntroPageRendered_ = false;
+  uint8_t lastStartIntroPage_ = 255;
   uint32_t lastSerialStatsMs_ = 0;
 };

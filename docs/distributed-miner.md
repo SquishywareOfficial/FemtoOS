@@ -65,7 +65,9 @@ The C3 OLED UI is compact and mainly useful for testing or lightweight slave use
 
 ### ESP32-C3 Headless
 
-Flash the `femto-c3-headless` build. It boots directly into slave mode.
+Flash the `femto-c3-headless` build. It has a tiny LED/button launcher with Mouse Emulator and Slave Miner apps. Fresh boards start in the LED menu; open Slave Miner from the menu, or double-tap while Slave Miner is running to save it as the autolaunch app.
+
+To clear a saved headless autolaunch app, return to the LED menu and double-tap. The menu becomes the boot default again.
 
 See [../femto-c3-headless/README.md](../femto-c3-headless/README.md) for the headless-specific LED and BOOT behavior.
 
@@ -98,13 +100,19 @@ See [../femto-c3-headless/README.md](../femto-c3-headless/README.md) for the hea
 
 ## Headless C3 LED And Button
 
-The headless C3 uses GPIO8 for status on tested ESP32-C3 SuperMini boards.
+The headless C3 uses GPIO8 for status on tested ESP32-C3 SuperMini boards. The LED first shows which app is active, then shows that app's state pattern.
 
-- Solid LED: actively or recently mining.
-- Slow blink: searching or not paired.
-- Very slow blink: paired but idle.
-- Fast blink: error.
-- Hold BOOT for about five seconds: clear saved master/cluster pairing.
+For Slave Miner:
+
+- App marker: LED on, two short blinks, LED on again, short off gap.
+- Solid LED for up to 5 seconds: actively or recently mining.
+- Slow blink for up to 5 seconds: searching / not paired.
+- Very slow blink for up to 5 seconds: paired but idle.
+- Fast blink for up to 5 seconds: error.
+- 2 taps: make Slave Miner the saved autolaunch app.
+- 3 taps: clear saved master/cluster pairing.
+- Hold BOOT for about five seconds: exit to the LED menu.
+- In the LED menu, 2 taps clears the saved autolaunch app and keeps future boots in the menu.
 
 The tested GPIO8 LED is active-low. Other boards may need LED polarity changes.
 
@@ -136,7 +144,7 @@ On FemtoDeck builds, use:
 
 **Options / Save Manager / Cluster**
 
-On headless C3, hold BOOT for about five seconds.
+On headless C3, triple-tap while Slave Miner is running.
 
 ## Performance Notes
 
@@ -150,5 +158,5 @@ On headless C3, hold BOOT for about five seconds.
 - If a slave says it is paired but the master shows no slaves, reset cluster data on both devices and pair again.
 - If the master is on channel `0`, start the cluster before pairing.
 - If slaves show paired but `0H/s`, check that the master is connected to WiFi and the pool.
-- If a headless C3 LED is blinking slowly forever, it is probably searching for a master beacon.
+- If a headless C3 Slave Miner state pattern is blinking slowly forever, it is probably searching for a master beacon.
 - If you change the master device, clear slave pairing before pairing with the new master.

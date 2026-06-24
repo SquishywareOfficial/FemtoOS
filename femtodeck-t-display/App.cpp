@@ -127,6 +127,10 @@ uint16_t App::runningRenderIntervalMs() const {
     return 33;
 }
 
+uint16_t App::staticRenderIntervalMs() const {
+    return 2000;
+}
+
 bool App::wantsImmediateRender() const {
     return false;
 }

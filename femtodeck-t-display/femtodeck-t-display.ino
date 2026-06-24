@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Preferences.h>
+#include <NimBLEUUID.h>
 
 #include "App.h"
 #include "src/apps/CounterApp.h"
@@ -44,6 +45,8 @@
 
 #include "TDisplayUi.h"
 #include "Version.h"
+
+static NimBLEUUID nimbleUuidLinkAnchor(static_cast<uint16_t>(0x1812));
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite* menuFrameSprite = nullptr;
@@ -515,14 +518,17 @@ void exitActiveAppToMenu(uint32_t nowMs, bool b1, bool b2) {
 
 void renderActiveAppIfDue(uint32_t nowMs) {
   const AppPhase currentPhase = activeApp->phase();
-  const uint16_t interval = currentPhase == AppPhase::Running ? activeApp->runningRenderIntervalMs() : APP_STATIC_RENDER_MS;
-  if (!activeApp->wantsImmediateRender() && !appRenderDue && currentPhase == lastRenderedAppPhase && nowMs < nextAppRenderMs) {
+  const uint16_t interval = currentPhase == AppPhase::Running ? activeApp->runningRenderIntervalMs() : activeApp->staticRenderIntervalMs();
+  const bool timedRenderEnabled = interval > 0;
+  const bool wantsImmediate = activeApp->wantsImmediateRender();
+  if (!wantsImmediate && !appRenderDue && currentPhase == lastRenderedAppPhase &&
+      (!timedRenderEnabled || nowMs < nextAppRenderMs)) {
     return;
   }
   activeApp->render(tft);
   appRenderDue = false;
   lastRenderedAppPhase = currentPhase;
-  nextAppRenderMs = nowMs + interval;
+  nextAppRenderMs = timedRenderEnabled ? nowMs + interval : UINT32_MAX;
 }
 
 void drawAutoLaunchNotice() {

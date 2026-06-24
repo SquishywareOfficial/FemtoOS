@@ -47,7 +47,8 @@ For fallback flashing commands, browser requirements, and release asset details,
 - Generic ESP32-C3 board with no display.
 - BOOT button on `GPIO9`.
 - Status LED on `GPIO8`.
-- Current build boots directly as a Distributed Miner slave.
+- LED/button launcher with Mouse Emulator and Distributed Miner slave apps.
+- Fresh boards start in the LED menu unless an app has been saved for autolaunch; double-tap in the LED menu clears autolaunch.
 
 ### TENSTAR / LilyGO-Style T-Display ESP32
 

@@ -54,6 +54,7 @@ class App {
         void tick(uint32_t nowMs, bool button1Down, bool button2Down);
         virtual void render(TFT_eSPI& tft);
         virtual uint16_t runningRenderIntervalMs() const;
+        virtual uint16_t staticRenderIntervalMs() const;
         virtual bool wantsImmediateRender() const;
 
         bool shouldExitToMenu() const;

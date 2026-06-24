@@ -3,6 +3,7 @@
 #include <NimBLEDevice.h>
 #include <NimBLEHIDDevice.h>
 #include <NimBLEServer.h>
+#include <NimBLEUUID.h>
 #include <HIDTypes.h>
 
 #include "../../TDisplayUi.h"
@@ -27,11 +28,17 @@ const uint8_t HID_REPORT_DESCRIPTOR[] = {
     HIDINPUT(1), 0x06, END_COLLECTION(0), END_COLLECTION(0)
 };
 
+void keepNimBLEUuidLinked() {
+  static NimBLEUUID hidServiceUuid(static_cast<uint16_t>(0x1812));
+  (void)hidServiceUuid;
+}
+
 class NimbleMouse : public NimBLEServerCallbacks {
   public:
     void begin(const MouseIdentityProfile& identity, uint8_t profileIndex) {
       if (started_ && currentProfileIndex_ == profileIndex) return;
       if (started_) end();
+      keepNimBLEUuidLinked();
       NimBLEDevice::init(identity.deviceName);
       NimBLEDevice::setSecurityAuth(true, false, true);
       NimBLEDevice::setSecurityIOCap(0x03); // No input/output: pair without a PIN.
