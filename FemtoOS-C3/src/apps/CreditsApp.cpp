@@ -6,7 +6,7 @@
 
 namespace {
 constexpr uint8_t ABOUT_ITEM_COUNT = 2;
-constexpr uint8_t LICENSE_PAGE_COUNT = 5;
+constexpr uint8_t LICENSE_PAGE_COUNT = 6;
 
 struct CreditPage {
   const char* game;
@@ -164,13 +164,20 @@ void CreditsApp::drawLicense(U8G2& u8g2) {
       u8g2.drawStr(3, 38, "thedarkfalcon");
       break;
     case 2:
+      u8g2.drawStr(3, 9, "Repo");
+      u8g2.setFont(u8g2_font_4x6_tr);
+      u8g2.drawStr(3, 20, "github.com");
+      u8g2.drawStr(3, 29, "Squishyware");
+      u8g2.drawStr(3, 38, "Official/FemtoOS");
+      break;
+    case 3:
       u8g2.drawStr(3, 9, "Permission");
       u8g2.setFont(u8g2_font_4x6_tr);
       u8g2.drawStr(3, 20, "copy modify");
       u8g2.drawStr(3, 29, "publish sell");
       u8g2.drawStr(3, 38, "as you want");
       break;
-    case 3:
+    case 4:
       u8g2.drawStr(3, 9, "MIT Parts");
       u8g2.setFont(u8g2_font_4x6_tr);
       u8g2.drawStr(3, 20, "NerdMiner");

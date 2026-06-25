@@ -7,7 +7,7 @@
 
 namespace {
 constexpr uint8_t ABOUT_ITEM_COUNT = 2;
-constexpr uint8_t LICENSE_PAGE_COUNT = 5;
+constexpr uint8_t LICENSE_PAGE_COUNT = 6;
 
 struct CreditPage {
   const char* game;
@@ -251,11 +251,17 @@ void CreditsApp::drawLicense(TFT_eSPI& tft) {
       drawBodyLine(tft, 72, 68, "thedarkfalcon", TFT_GREEN);
       break;
     case 2:
+      drawBodyLine(tft, 18, 50, "Repository");
+      drawBodyLine(tft, 18, 68, "github.com/");
+      drawBodyLine(tft, 18, 84, "SquishywareOfficial", TFT_GREEN);
+      drawBodyLine(tft, 18, 100, "/FemtoOS", TFT_GREEN);
+      break;
+    case 3:
       drawBodyLine(tft, 18, 50, "Permission:");
       drawBodyLine(tft, 18, 68, "copy, modify, publish,");
       drawBodyLine(tft, 18, 84, "sell, and share freely.");
       break;
-    case 3:
+    case 4:
       drawBodyLine(tft, 18, 50, "NerdMiner-derived");
       drawBodyLine(tft, 18, 68, "miner code uses MIT.", TFT_GREEN);
       drawBodyLine(tft, 18, 86, "See licenses/");

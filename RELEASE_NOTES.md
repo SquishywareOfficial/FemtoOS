@@ -1,5 +1,10 @@
 # Release Notes
 
+## v2.1 b82
+
+- Moved the canonical project home to `SquishywareOfficial/FemtoOS`.
+- Updated README, flashing docs, web installer links, simulator metadata, and firmware About pages to point to the new repository and Pages URLs.
+
 ## v2.1 b81
 
 - Renamed the firmware/software branding to `Femto OS`, with `FemtoOS-*` target folders/artifacts and `FemtoDeck` retained only for device-style splash branding and compatibility names.

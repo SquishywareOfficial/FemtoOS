@@ -2,13 +2,11 @@
 
 Femto OS is a small multi-app handheld OS for tiny ESP32 boards. It started as an expansion of Atomic14's [esp32-c3-oled-single-button-games](https://github.com/atomic14/esp32-c3-oled-single-button-games), then grew into a ground-up rewrite with games, utilities, WiFi tools, ESP-NOW messaging, solo mining, and distributed miner modes.
 
-Repo shortcut: [git.new/esp32games](https://git.new/esp32games)
-
 Quick links:
 
-- [Web flasher](https://thedarkfalcon.github.io/femtodeck-esp32-c3/)
-- [C3 simulator](https://thedarkfalcon.github.io/femtodeck-esp32-c3/simulator/)
-- [Latest release](https://github.com/thedarkfalcon/femtodeck-esp32-c3/releases/latest)
+- [Web flasher](https://squishywareofficial.github.io/FemtoOS/)
+- [C3 simulator](https://squishywareofficial.github.io/FemtoOS/simulator/)
+- [Latest release](https://github.com/SquishywareOfficial/FemtoOS/releases/latest)
 - [Release notes](RELEASE_NOTES.md)
 - [Documentation index](docs/README.md)
 - [Flashing guide](docs/flashing.md)
@@ -20,7 +18,7 @@ Quick links:
 
 If you already have a supported ESP32 board and just want to put Femto OS on it:
 
-1. Open the [web flasher](https://thedarkfalcon.github.io/femtodeck-esp32-c3/) in Chrome or Edge.
+1. Open the [web flasher](https://squishywareofficial.github.io/FemtoOS/) in Chrome or Edge.
 2. Connect the board over USB.
 3. Click **Install** on the card that matches your board:
    - **Femto OS for C3** for the ESP32-C3 0.42 inch OLED board.
@@ -29,7 +27,7 @@ If you already have a supported ESP32 board and just want to put Femto OS on it:
 4. Choose the serial port when the browser prompts for it.
 5. If flashing fails, hold **BOOT** while plugging in the board, then try again.
 
-The web flasher uses the latest successful GitHub Pages deployment from `main`. Tagged [GitHub Releases](https://github.com/thedarkfalcon/femtodeck-esp32-c3/releases) are downloadable snapshots with ZIP files for manual flashing.
+The web flasher uses the latest successful GitHub Pages deployment from `main`. Tagged [GitHub Releases](https://github.com/SquishywareOfficial/FemtoOS/releases) are downloadable snapshots with ZIP files for manual flashing.
 
 For fallback flashing commands, browser requirements, and release asset details, see the [flashing guide](docs/flashing.md).
 
@@ -119,8 +117,8 @@ The build scripts do not bump `Version.h`. Release/version bumps should be made 
 
 ## Browser Installer And Simulator
 
-- Web flasher: [https://thedarkfalcon.github.io/femtodeck-esp32-c3/](https://thedarkfalcon.github.io/femtodeck-esp32-c3/)
-- Simulator: [https://thedarkfalcon.github.io/femtodeck-esp32-c3/simulator/](https://thedarkfalcon.github.io/femtodeck-esp32-c3/simulator/)
+- Web flasher: [https://squishywareofficial.github.io/FemtoOS/](https://squishywareofficial.github.io/FemtoOS/)
+- Simulator: [https://squishywareofficial.github.io/FemtoOS/simulator/](https://squishywareofficial.github.io/FemtoOS/simulator/)
 
 The flasher currently supports the C3 OLED, T-Display, and headless C3 builds.
 

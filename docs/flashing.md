@@ -2,7 +2,7 @@
 
 The easiest way to install Femto OS and turn a supported ESP32 board into a Femto Deck is the browser flasher:
 
-[https://thedarkfalcon.github.io/femtodeck-esp32-c3/](https://thedarkfalcon.github.io/femtodeck-esp32-c3/)
+[https://squishywareofficial.github.io/FemtoOS/](https://squishywareofficial.github.io/FemtoOS/)
 
 Use Chrome or Edge on a desktop computer. Mobile browsers usually do not expose USB serial flashing.
 
@@ -15,7 +15,7 @@ Use Chrome or Edge on a desktop computer. Mobile browsers usually do not expose 
 ## Browser Flashing
 
 1. Connect the board over USB.
-2. Open the [web flasher](https://thedarkfalcon.github.io/femtodeck-esp32-c3/).
+2. Open the [web flasher](https://squishywareofficial.github.io/FemtoOS/).
 3. Click **Install** on the card that matches your board.
 4. Choose the board serial port when the browser prompts for it.
 5. Wait for flashing to complete, then reset or reconnect the board if needed.
@@ -35,7 +35,7 @@ For most users, the web flasher is simpler. Releases are useful when you want a 
 
 ## Manual Flashing From A Release
 
-Download a firmware ZIP from the [latest release](https://github.com/thedarkfalcon/femtodeck-esp32-c3/releases/latest), extract it, and use the merged binary.
+Download a firmware ZIP from the [latest release](https://github.com/SquishywareOfficial/FemtoOS/releases/latest), extract it, and use the merged binary.
 
 Windows release ZIPs include a helper:
 

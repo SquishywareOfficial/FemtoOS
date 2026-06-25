@@ -3,7 +3,7 @@
   const H = 40;
   const LONG_MS = 700;
   const END_LOCK_MS = 500;
-  const BUILD_TEXT = "v2.1 b81";
+  const BUILD_TEXT = "v2.1 b82";
   const READING_LINES_PER_PAGE = 3;
 
   const canvas = document.getElementById("oled");
@@ -2172,7 +2172,7 @@
         return;
       }
       if (input.click) {
-        const count = this.mode === "license" ? 4 : this.credits.length;
+        const count = this.mode === "license" ? 6 : this.credits.length;
         if (++this.page >= count) {
           this.mode = "select";
           this.page = 0;
@@ -2193,7 +2193,9 @@
         const pages = [
           ["License", "WTFPL +", "No Warranty"],
           ["Copyright", "2026", "github:", "thedarkfalcon"],
+          ["Repo", "github.com", "Squishyware", "Official/FemtoOS"],
           ["Permission", "copy modify", "publish sell", "as you want"],
+          ["MIT Parts", "NerdMiner", "mining code", "uses MIT"],
           ["No Warranty", "provided as-is", "use at your", "own risk"]
         ];
         const page = pages[this.page];
