@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -240,16 +241,18 @@ void EspContactsApp::showFeedback(const char* text, uint16_t color, Mode returnM
 
 void EspContactsApp::drawRunning(TFT_eSPI& tft) {
   if (!dirty_) return;
-  TDisplayUi::clear(tft);
-  if (mode_ == Mode::Listen) drawListen(tft);
-  else if (mode_ == Mode::Manage) drawManage(tft);
-  else if (mode_ == Mode::ConfirmDelete) drawConfirmDelete(tft);
-  else if (mode_ == Mode::Feedback) drawFeedback(tft);
-  else drawMain(tft);
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    if (mode_ == Mode::Listen) drawListen(canvas);
+    else if (mode_ == Mode::Manage) drawManage(canvas);
+    else if (mode_ == Mode::ConfirmDelete) drawConfirmDelete(canvas);
+    else if (mode_ == Mode::Feedback) drawFeedback(canvas);
+    else drawMain(canvas);
+  });
   dirty_ = false;
 }
 
-void EspContactsApp::drawMain(TFT_eSPI& tft) {
+template <typename Canvas>
+void EspContactsApp::drawMain(Canvas& tft) {
   TDisplayUi::header(tft, "ESP Contacts", TFT_CYAN, myInitials_);
   for (uint8_t i = 0; i < MAIN_COUNT; i++) {
     TDisplayUi::row(tft, 34 + i * 22, MAIN_ITEMS[i], i == mainIndex_, TFT_CYAN);
@@ -257,7 +260,8 @@ void EspContactsApp::drawMain(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 next/select  B2 prev");
 }
 
-void EspContactsApp::drawListen(TFT_eSPI& tft) {
+template <typename Canvas>
+void EspContactsApp::drawListen(Canvas& tft) {
   TDisplayUi::header(tft, radioReady_ ? "Listening" : "Radio Failed", radioReady_ ? TFT_GREEN : TFT_RED);
   TDisplayUi::centered(tft, "Saved Contacts", 38, 1, TFT_LIGHTGREY);
   TDisplayUi::largeValue(tft, String(contactBook_.count()), 50, TFT_GREEN);
@@ -265,7 +269,8 @@ void EspContactsApp::drawListen(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 hold/B2 back");
 }
 
-void EspContactsApp::drawManage(TFT_eSPI& tft) {
+template <typename Canvas>
+void EspContactsApp::drawManage(Canvas& tft) {
   const String stat = String(contactBook_.count()) + "/" + String(EspContacts::MAX_CONTACTS);
   TDisplayUi::header(tft, "Manage Contacts", TFT_YELLOW, stat.c_str());
   const uint8_t count = contactBook_.count() + 1;
@@ -284,7 +289,8 @@ void EspContactsApp::drawManage(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 next/select  B2 prev");
 }
 
-void EspContactsApp::drawConfirmDelete(TFT_eSPI& tft) {
+template <typename Canvas>
+void EspContactsApp::drawConfirmDelete(Canvas& tft) {
   TDisplayUi::header(tft, "Delete Contact?", TFT_RED);
   if (contactIndex_ < contactBook_.count()) {
     TDisplayUi::largeValue(tft, contactBook_.get(contactIndex_).label, 48, TFT_RED);
@@ -292,7 +298,8 @@ void EspContactsApp::drawConfirmDelete(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 hold yes  B1/B2 tap no");
 }
 
-void EspContactsApp::drawFeedback(TFT_eSPI& tft) {
+template <typename Canvas>
+void EspContactsApp::drawFeedback(Canvas& tft) {
   TDisplayUi::header(tft, "ESP Contacts", feedbackColor_);
   TDisplayUi::largeValue(tft, feedbackText_, 54, feedbackColor_);
   TDisplayUi::footer(tft, "ESP-NOW contact info");

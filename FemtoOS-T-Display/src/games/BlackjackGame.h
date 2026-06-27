@@ -55,7 +55,8 @@ class BlackjackGame : public App {
     void saveBestIfNeeded();
     const char* cardLabel(uint8_t card) const;
     const char* resultText() const;
-    void drawCards(TFT_eSPI& tft, int x, int y, const uint8_t* cards, uint8_t count, bool hideFirst);
+    template <typename Canvas>
+    void drawCards(Canvas& tft, int x, int y, const uint8_t* cards, uint8_t count, bool hideFirst);
 
     HandState handState_ = HandState::Betting;
     RoundResult result_ = RoundResult::None;

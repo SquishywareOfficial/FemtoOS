@@ -23,10 +23,10 @@ class ReadingApp : public App {
       Complete
     };
 
-    void drawSelection(TFT_eSPI& tft) const;
-    void drawReading(TFT_eSPI& tft);
-    void drawComplete(TFT_eSPI& tft) const;
-    void drawCenteredText(TFT_eSPI& tft, int y, const char* text) const;
+    template <typename Canvas> void drawSelection(Canvas& tft) const;
+    template <typename Canvas> void drawReading(Canvas& tft);
+    template <typename Canvas> void drawComplete(Canvas& tft) const;
+    template <typename Canvas> void drawCenteredText(Canvas& tft, int y, const char* text) const;
     void markDirty();
 
     uint8_t selection_;

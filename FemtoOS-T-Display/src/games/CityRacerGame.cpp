@@ -5,11 +5,9 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 namespace {
 Preferences cityRacerPrefs;
-TFT_eSprite* cityRacerFrame = nullptr;
-bool cityRacerFrameReady = false;
-int8_t cityRacerFrameDepth = 0;
 bool cityRacerFrameLogged = false;
 uint32_t lastSpriteFallbackLogMs = 0;
 
@@ -24,25 +22,6 @@ constexpr int LANE_W = ROAD_W / 3;
 constexpr int CAR_W = 22;
 constexpr int CAR_H = 30;
 constexpr uint16_t RUNNING_DRAW_MS = 33;
-
-const uint16_t CITY_RACER_PALETTE[16] = {
-    TFT_BLACK,
-    TFT_BLUE,
-    TFT_DARKGREY,
-    TFT_LIGHTGREY,
-    TFT_WHITE,
-    TFT_RED,
-    TFT_ORANGE,
-    TFT_CYAN,
-    TFT_YELLOW,
-    TFT_GREEN,
-    TFT_NAVY,
-    TFT_MAROON,
-    TFT_DARKCYAN,
-    TFT_PURPLE,
-    TFT_MAGENTA,
-    TFT_SILVER
-};
 
 void setPortrait(TFT_eSPI& tft) {
   tft.setRotation(PORTRAIT_ROTATION);
@@ -109,34 +88,6 @@ void drawCarShape(Canvas& tft, int x, int y, bool player) {
   }
 }
 
-bool ensureCityRacerFrame(TFT_eSPI& tft) {
-  if (cityRacerFrame == nullptr) {
-    cityRacerFrame = new TFT_eSprite(&tft);
-    if (cityRacerFrame == nullptr) return false;
-  }
-  if (!cityRacerFrameReady) {
-    cityRacerFrame->setColorDepth(8);
-    cityRacerFrameReady = cityRacerFrame->createSprite(PORTRAIT_W, PORTRAIT_H) != nullptr;
-    cityRacerFrameDepth = cityRacerFrameReady ? 8 : 0;
-  }
-  if (!cityRacerFrameReady) {
-    cityRacerFrame->deleteSprite();
-    cityRacerFrame->setColorDepth(4);
-    cityRacerFrameReady = cityRacerFrame->createSprite(PORTRAIT_W, PORTRAIT_H) != nullptr;
-    if (cityRacerFrameReady) {
-      cityRacerFrame->createPalette(CITY_RACER_PALETTE);
-      cityRacerFrameDepth = 4;
-    }
-  }
-  if (cityRacerFrameReady && !cityRacerFrameLogged) {
-    cityRacerFrameLogged = true;
-    Serial.print("[city-racer] sprite depth=");
-    Serial.print(cityRacerFrameDepth);
-    Serial.print(" free_heap=");
-    Serial.println(ESP.getFreeHeap());
-  }
-  return cityRacerFrameReady;
-}
 }
 
 CityRacerGame::CityRacerGame(uint32_t width, uint32_t height)
@@ -261,16 +212,19 @@ void CityRacerGame::drawRunning(TFT_eSPI& tft) {
     drawCar(canvas, laneX(playerLane_), PLAYER_Y, true);
   };
 
-  if (ensureCityRacerFrame(tft)) {
-    drawScene(*cityRacerFrame);
-    cityRacerFrame->pushSprite(0, 0);
+  const bool buffered = TDisplayFramebuffer::draw(tft, PORTRAIT_W, PORTRAIT_H, drawScene);
+  if (buffered) {
+    if (!cityRacerFrameLogged) {
+      cityRacerFrameLogged = true;
+      Serial.print("[city-racer] shared sprite free_heap=");
+      Serial.println(ESP.getFreeHeap());
+    }
   } else {
     const uint32_t now = millis();
     if (now - lastSpriteFallbackLogMs > 2000) {
       lastSpriteFallbackLogMs = now;
       Serial.println("[city-racer] sprite unavailable, using tearing-prone direct draw fallback");
     }
-    drawScene(tft);
   }
 }
 

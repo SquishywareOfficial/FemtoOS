@@ -32,10 +32,10 @@ class TinyGolfGame : public App {
     void updateAim(uint32_t deltaMs);
     void updatePower(uint32_t deltaMs);
     void updateBall(uint32_t deltaMs);
-    void drawCourse(TFT_eSPI& tft);
-    void drawHud(TFT_eSPI& tft);
-    void drawAim(TFT_eSPI& tft);
-    void drawPower(TFT_eSPI& tft);
+    template <typename Canvas> void drawCourse(Canvas& tft);
+    template <typename Canvas> void drawHud(Canvas& tft);
+    template <typename Canvas> void drawAim(Canvas& tft);
+    template <typename Canvas> void drawPower(Canvas& tft);
     void startShot();
     void finishHole();
     void finishCourse();

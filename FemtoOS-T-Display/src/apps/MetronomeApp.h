@@ -16,8 +16,7 @@ class MetronomeApp : public App {
     bool startsRunningImmediately() const override;
 
   private:
-    void drawStatic(TFT_eSPI& tft, bool running);
-    void drawBpmArea(TFT_eSPI& tft, bool pulse);
+    void drawMetronomeFrame(TFT_eSPI& tft, bool running, bool pulse);
 
     MetronomeLogic logic_;
     uint32_t pulseUntilMs_ = 0;

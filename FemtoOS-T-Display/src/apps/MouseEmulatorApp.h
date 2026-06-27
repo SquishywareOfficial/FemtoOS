@@ -20,7 +20,7 @@ class MouseEmulatorApp : public App {
     void ensureProfileLoaded();
     void cycleProfile();
     void sendHumanizedStep();
-    void updateDynamicStats(TFT_eSPI& tft);
+    template <typename Canvas> void drawDashboard(Canvas& tft, bool connected, bool enabled, int8_t connectionPhase, int32_t countdownValue);
 
     MouseEmulatorLogic logic_;
     uint32_t lastClockUpdate_ = 0;

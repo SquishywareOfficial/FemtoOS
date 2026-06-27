@@ -1,4 +1,5 @@
 #include "RandomNumberApp.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include <TFT_eSPI.h>
 
@@ -41,31 +42,31 @@ void RandomNumberApp::drawRunning(TFT_eSPI& tft) {
   if (!dirty_) {
     return;
   }
-  TDisplayUi::clear(tft);
-
-  if (logic_.isEditing()) {
-    if (logic_.isChoosingIncludeZero()) {
-      TDisplayUi::header(tft, "Random Number", TFT_MAGENTA, "ZERO");
-      TDisplayUi::centered(tft, "Include 0?", 42, 2, TFT_LIGHTGREY);
-      TDisplayUi::centered(tft, logic_.includesZero() ? "YES" : "NO", 70, 4, logic_.includesZero() ? TFT_GREEN : TFT_RED);
-      TDisplayUi::footer(tft, "B1 toggle / B1 hold next");
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    if (logic_.isEditing()) {
+      if (logic_.isChoosingIncludeZero()) {
+        TDisplayUi::header(canvas, "Random Number", TFT_MAGENTA, "ZERO");
+        TDisplayUi::centered(canvas, "Include 0?", 42, 2, TFT_LIGHTGREY);
+        TDisplayUi::centered(canvas, logic_.includesZero() ? "YES" : "NO", 70, 4, logic_.includesZero() ? TFT_GREEN : TFT_RED);
+        TDisplayUi::footer(canvas, "B1 toggle / B1 hold next");
+      } else {
+        TDisplayUi::header(canvas, "Random Number", TFT_MAGENTA, "RANGE");
+        String range = String(logic_.getMin()) + ".." + String(logic_.getMax());
+        TDisplayUi::centered(canvas, "Upper bound", 38, 1, TFT_LIGHTGREY);
+        TDisplayUi::largeValue(canvas, String(logic_.getMax()), 55, TFT_MAGENTA);
+        TDisplayUi::centered(canvas, range, 104, 1, TFT_LIGHTGREY);
+        TDisplayUi::footer(canvas, "B1 next range / B1 hold roll");
+      }
     } else {
-      TDisplayUi::header(tft, "Random Number", TFT_MAGENTA, "RANGE");
       String range = String(logic_.getMin()) + ".." + String(logic_.getMax());
-      TDisplayUi::centered(tft, "Upper bound", 38, 1, TFT_LIGHTGREY);
-      TDisplayUi::largeValue(tft, String(logic_.getMax()), 55, TFT_MAGENTA);
-      TDisplayUi::centered(tft, range, 104, 1, TFT_LIGHTGREY);
-      TDisplayUi::footer(tft, "B1 next range / B1 hold roll");
+      TDisplayUi::header(canvas, "Random Number", TFT_GREEN, range.c_str());
+
+      String res = String(logic_.getResult());
+      TDisplayUi::largeValue(canvas, res, 49, TFT_GREEN);
+
+      TDisplayUi::footer(canvas, "B1 roll again / B1 hold edit");
     }
-  } else {
-    String range = String(logic_.getMin()) + ".." + String(logic_.getMax());
-    TDisplayUi::header(tft, "Random Number", TFT_GREEN, range.c_str());
-
-    String res = String(logic_.getResult());
-    TDisplayUi::largeValue(tft, res, 49, TFT_GREEN);
-
-    TDisplayUi::footer(tft, "B1 roll again / B1 hold edit");
-  }
+  });
   dirty_ = false;
 }
 

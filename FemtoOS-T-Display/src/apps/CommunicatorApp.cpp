@@ -6,8 +6,9 @@
 #include <esp_wifi.h>
 #include <string.h>
 
-#include "../../TDisplayUi.h"
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
+#include "../../TDisplayUi.h"
 
 namespace {
 constexpr uint8_t ESPNOW_CHANNEL = 6;
@@ -546,18 +547,19 @@ void CommunicatorApp::drawRunning(TFT_eSPI& tft) {
   if (!dirty_) {
     return;
   }
-  TDisplayUi::clear(tft);
-  if (mode_ == UiMode::Feedback) {
-    drawFeedback(tft);
-  } else if (mode_ == UiMode::Recipient) {
-    drawRecipient(tft);
-  } else if (mode_ == UiMode::Inbox) {
-    drawInbox(tft);
-  } else if (mode_ == UiMode::OpenMessage) {
-    drawOpenMessage(tft);
-  } else {
-    drawSend(tft);
-  }
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    if (mode_ == UiMode::Feedback) {
+      drawFeedback(canvas);
+    } else if (mode_ == UiMode::Recipient) {
+      drawRecipient(canvas);
+    } else if (mode_ == UiMode::Inbox) {
+      drawInbox(canvas);
+    } else if (mode_ == UiMode::OpenMessage) {
+      drawOpenMessage(canvas);
+    } else {
+      drawSend(canvas);
+    }
+  });
   dirty_ = false;
 }
 
@@ -573,7 +575,8 @@ void CommunicatorApp::drawStart(TFT_eSPI& tft) {
   startDirty_ = false;
 }
 
-void CommunicatorApp::drawSend(TFT_eSPI& tft) {
+template <typename Canvas>
+void CommunicatorApp::drawSend(Canvas& tft) {
   TDisplayUi::header(tft, currentTitle(), radioReady_ ? TFT_CYAN : TFT_RED, radioReady_ ? "radio" : "!");
   uint8_t count = 0;
   const Node* list = currentList(count);
@@ -603,7 +606,8 @@ const char* CommunicatorApp::recipientLabel(uint8_t index) const {
   return "?";
 }
 
-void CommunicatorApp::drawRecipient(TFT_eSPI& tft) {
+template <typename Canvas>
+void CommunicatorApp::drawRecipient(Canvas& tft) {
   TDisplayUi::header(tft, "Send To", TFT_CYAN, packetLeafLabel(pendingPacket_));
   const uint8_t count = contactBook_.count() + 1;
   const uint8_t first = recipientIndex_ >= ROW_COUNT ? recipientIndex_ - ROW_COUNT + 1 : 0;
@@ -614,7 +618,8 @@ void CommunicatorApp::drawRecipient(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 next/hold send  B2 back");
 }
 
-void CommunicatorApp::drawInbox(TFT_eSPI& tft) {
+template <typename Canvas>
+void CommunicatorApp::drawInbox(Canvas& tft) {
   const String stat = String(logic_.getInboxCount()) + " msg";
   TDisplayUi::header(tft, "Inbox", TFT_YELLOW, stat.c_str());
   const uint8_t count = logic_.getInboxCount() + 1;
@@ -633,7 +638,8 @@ void CommunicatorApp::drawInbox(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 next/hold open  B2 send");
 }
 
-void CommunicatorApp::drawOpenMessage(TFT_eSPI& tft) {
+template <typename Canvas>
+void CommunicatorApp::drawOpenMessage(Canvas& tft) {
   TDisplayUi::header(tft, "Message", TFT_YELLOW);
   if (openInboxIndex_ < logic_.getInboxCount()) {
     auto& inbox = logic_.getInboxItem(openInboxIndex_);
@@ -652,7 +658,8 @@ void CommunicatorApp::drawOpenMessage(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1/B2 back");
 }
 
-void CommunicatorApp::drawFeedback(TFT_eSPI& tft) {
+template <typename Canvas>
+void CommunicatorApp::drawFeedback(Canvas& tft) {
   TDisplayUi::header(tft, "Communicator", feedbackColor_);
   TDisplayUi::largeValue(tft, feedbackText_, 55, feedbackColor_);
   TDisplayUi::footer(tft, "ESP-NOW broadcast");

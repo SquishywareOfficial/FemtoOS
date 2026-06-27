@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -12,6 +13,17 @@ constexpr uint8_t FISH_LED_PIN = 8;
 constexpr bool FISH_LED_ACTIVE_LOW = true;
 constexpr bool FISH_LED_AVAILABLE = false;
 Preferences fishPrefs;
+
+template <typename Canvas>
+void drawWaterShape(Canvas& canvas, uint32_t width, uint32_t height) {
+  canvas.fillRect(0, 96, width, height - 96, TFT_NAVY);
+  canvas.drawFastHLine(0, 96, width, TFT_CYAN);
+  for (uint8_t i = 0; i < 9; i++) {
+    const int x = 6 + i * 27;
+    canvas.drawLine(x, 111, x + 9, 107, TFT_CYAN);
+    canvas.drawLine(x + 9, 107, x + 18, 111, TFT_CYAN);
+  }
+}
 }
 
 FishingFlickGame::FishingFlickGame(uint32_t width, uint32_t height)
@@ -140,50 +152,52 @@ void FishingFlickGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, co
 }
 
 void FishingFlickGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Fishing Flick", TFT_CYAN, (String("L") + String(level_) + " " + String(fishWeight_) + "g").c_str());
-  drawWater(tft);
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Fishing Flick", TFT_CYAN, (String("L") + String(level_) + " " + String(fishWeight_) + "g").c_str());
+    drawWaterShape(canvas, width, height);
 
-  if (fishState_ == FishState::Waiting) {
-    TDisplayUi::centered(tft, "Waiting...", 43, 3, TFT_LIGHTGREY);
-    tft.drawLine(54, 42, 115, 88, TFT_YELLOW);
-    tft.drawLine(115, 88, 124, 86, TFT_WHITE);
-    tft.drawCircle(126, 89, 2, TFT_WHITE);
-    TDisplayUi::footer(tft, "Wait for the tug");
-    return;
-  }
+    if (fishState_ == FishState::Waiting) {
+      TDisplayUi::centered(canvas, "Waiting...", 43, 3, TFT_LIGHTGREY);
+      canvas.drawLine(54, 42, 115, 88, TFT_YELLOW);
+      canvas.drawLine(115, 88, 124, 86, TFT_WHITE);
+      canvas.drawCircle(126, 89, 2, TFT_WHITE);
+      TDisplayUi::footer(canvas, "Wait for the tug");
+      return;
+    }
 
-  if (fishState_ == FishState::Hooking) {
-    const int tugOffset = ((millis() / 120) % 2 == 0) ? 3 : -3;
-    TDisplayUi::centered(tft, "TUG!", 39, 4, TFT_YELLOW);
-    tft.drawLine(58, 42, 116 + tugOffset * 3, 88, TFT_YELLOW);
-    tft.drawCircle(124 + tugOffset * 3, 91, 3, TFT_WHITE);
-    TDisplayUi::footer(tft, "B1 quick hook");
-    return;
-  }
+    if (fishState_ == FishState::Hooking) {
+      const int tugOffset = ((millis() / 120) % 2 == 0) ? 3 : -3;
+      TDisplayUi::centered(canvas, "TUG!", 39, 4, TFT_YELLOW);
+      canvas.drawLine(58, 42, 116 + tugOffset * 3, 88, TFT_YELLOW);
+      canvas.drawCircle(124 + tugOffset * 3, 91, 3, TFT_WHITE);
+      TDisplayUi::footer(canvas, "B1 quick hook");
+      return;
+    }
 
-  if (fishState_ == FishState::Caught) {
-    TDisplayUi::centered(tft, "CAUGHT!", 38, 4, TFT_GREEN);
-    TDisplayUi::largeValue(tft, String(caughtWeight_) + "g", 79, TFT_CYAN);
-    TDisplayUi::footer(tft, "Next fish...");
-    return;
-  }
+    if (fishState_ == FishState::Caught) {
+      TDisplayUi::centered(canvas, "CAUGHT!", 38, 4, TFT_GREEN);
+      TDisplayUi::largeValue(canvas, String(caughtWeight_) + "g", 79, TFT_CYAN);
+      TDisplayUi::footer(canvas, "Next fish...");
+      return;
+    }
 
-  TDisplayUi::labelValue(tft, 40, "Mode", fighting_ ? "FIGHT" : "REEL", fighting_ ? TFT_RED : TFT_GREEN);
-  TDisplayUi::labelValue(tft, 64, "Fish", String(fishWeight_) + "g", TFT_CYAN);
-  TDisplayUi::bar(tft, 68, 91, 152, 9, progress_ / 100.0f, TFT_GREEN);
-  TDisplayUi::bar(tft, 68, 108, 152, 9, tension_ / 100.0f, tension_ > 78.0f ? TFT_RED : (tension_ < 15.0f ? TFT_CYAN : TFT_YELLOW));
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString("Catch", 16, 91);
-  tft.drawString("Line", 16, 108);
-  if (tension_ > 78.0f) {
-    TDisplayUi::footer(tft, "LINE! release before it breaks");
-  } else if (tension_ < 15.0f) {
-    TDisplayUi::footer(tft, "SLACK! hold to reel");
-  } else {
-    TDisplayUi::footer(tft, "Hold reel / release during fight");
-  }
+    TDisplayUi::labelValue(canvas, 40, "Mode", fighting_ ? "FIGHT" : "REEL", fighting_ ? TFT_RED : TFT_GREEN);
+    TDisplayUi::labelValue(canvas, 64, "Fish", String(fishWeight_) + "g", TFT_CYAN);
+    TDisplayUi::bar(canvas, 68, 91, 152, 9, progress_ / 100.0f, TFT_GREEN);
+    TDisplayUi::bar(canvas, 68, 108, 152, 9, tension_ / 100.0f, tension_ > 78.0f ? TFT_RED : (tension_ < 15.0f ? TFT_CYAN : TFT_YELLOW));
+    canvas.setTextSize(1);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString("Catch", 16, 91);
+    canvas.drawString("Line", 16, 108);
+    if (tension_ > 78.0f) {
+      TDisplayUi::footer(canvas, "LINE! release before it breaks");
+    } else if (tension_ < 15.0f) {
+      TDisplayUi::footer(canvas, "SLACK! hold to reel");
+    } else {
+      TDisplayUi::footer(canvas, "Hold reel / release during fight");
+    }
+  });
 }
 
 void FishingFlickGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);
@@ -282,11 +296,5 @@ void FishingFlickGame::updateWarningLed() {
 }
 
 void FishingFlickGame::drawWater(TFT_eSPI& tft) {
-  tft.fillRect(0, 96, width, height - 96, TFT_NAVY);
-  tft.drawFastHLine(0, 96, width, TFT_CYAN);
-  for (uint8_t i = 0; i < 9; i++) {
-    const int x = 6 + i * 27;
-    tft.drawLine(x, 111, x + 9, 107, TFT_CYAN);
-    tft.drawLine(x + 9, 107, x + 18, 111, TFT_CYAN);
-  }
+  drawWaterShape(tft, width, height);
 }

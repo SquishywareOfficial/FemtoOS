@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -105,8 +106,8 @@ ReadingLayout makeReadingLayout(uint32_t width, uint32_t height, TDisplayUi::Tex
   return layout;
 }
 
-void drawShell(TFT_eSPI& tft, uint32_t width, uint32_t height, const char* title, uint8_t index = 0, uint8_t count = 0) {
-  tft.fillScreen(TFT_BLACK);
+template <typename Canvas>
+void drawShell(Canvas& tft, uint32_t width, uint32_t height, const char* title, uint8_t index = 0, uint8_t count = 0) {
   tft.setTextDatum(TL_DATUM);
   tft.setTextSize(2);
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);
@@ -122,7 +123,8 @@ void drawShell(TFT_eSPI& tft, uint32_t width, uint32_t height, const char* title
   tft.drawRect(0, 0, width, height, TFT_DARKGREY);
 }
 
-void drawFooter(TFT_eSPI& tft, uint32_t width, uint32_t height, const char* text) {
+template <typename Canvas>
+void drawFooter(Canvas& tft, uint32_t width, uint32_t height, const char* text) {
   tft.fillRect(0, height - 17, width, 17, TFT_BLACK);
   tft.setTextSize(1);
   tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
@@ -136,7 +138,8 @@ const char* skipSpaces(const char* cursor) {
   return cursor;
 }
 
-bool nextWrappedLine(TFT_eSPI& tft, const char*& cursor, char* line, size_t lineSize, int maxWidth) {
+template <typename Canvas>
+bool nextWrappedLine(Canvas& tft, const char*& cursor, char* line, size_t lineSize, int maxWidth) {
   cursor = skipSpaces(cursor);
   if (*cursor == '\0' || lineSize == 0) {
     return false;
@@ -294,11 +297,11 @@ void ReadingApp::drawRunning(TFT_eSPI& tft) {
     return;
   }
   if (mode_ == Mode::Select) {
-    drawSelection(tft);
+    TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) { drawSelection(canvas); });
   } else if (mode_ == Mode::Read) {
-    drawReading(tft);
+    TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) { drawReading(canvas); });
   } else {
-    drawComplete(tft);
+    TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) { drawComplete(canvas); });
   }
   dirty_ = false;
 }
@@ -311,7 +314,8 @@ void ReadingApp::drawStart(TFT_eSPI& tft) {
   startDirty_ = false;
 }
 
-void ReadingApp::drawCenteredText(TFT_eSPI& tft, int y, const char* text) const {
+template <typename Canvas>
+void ReadingApp::drawCenteredText(Canvas& tft, int y, const char* text) const {
   int x = ((int)width - (int)tft.textWidth(text)) / 2;
   if (x < 2) {
     x = 2;
@@ -319,7 +323,8 @@ void ReadingApp::drawCenteredText(TFT_eSPI& tft, int y, const char* text) const 
   tft.drawString(text, x, y);
 }
 
-void ReadingApp::drawSelection(TFT_eSPI& tft) const {
+template <typename Canvas>
+void ReadingApp::drawSelection(Canvas& tft) const {
   drawShell(tft, width, height, "Reading", selection_, READING_COUNT + 1);
 
   if (selection_ >= READING_COUNT) {
@@ -339,7 +344,8 @@ void ReadingApp::drawSelection(TFT_eSPI& tft) const {
   drawFooter(tft, width, height, "B1 next/open  B2 back");
 }
 
-bool drawWrappedPage(TFT_eSPI& tft, const char* text, uint8_t page, const ReadingLayout& layout) {
+template <typename Canvas>
+bool drawWrappedPage(Canvas& tft, const char* text, uint8_t page, const ReadingLayout& layout) {
   const char* cursor = text;
   char line[MAX_LINE_CHARS + 1];
   const uint16_t linesToSkip = static_cast<uint16_t>(page) * layout.linesPerPage;
@@ -360,7 +366,8 @@ bool drawWrappedPage(TFT_eSPI& tft, const char* text, uint8_t page, const Readin
   return *skipSpaces(cursor) != '\0';
 }
 
-void ReadingApp::drawReading(TFT_eSPI& tft) {
+template <typename Canvas>
+void ReadingApp::drawReading(Canvas& tft) {
   drawShell(tft, width, height, READINGS[selection_].ref);
   const ReadingLayout layout = makeReadingLayout(width, height, TDisplayUi::loadTextSize());
   tft.setTextSize(layout.textSize);
@@ -369,7 +376,8 @@ void ReadingApp::drawReading(TFT_eSPI& tft) {
   drawFooter(tft, width, height, pageHasMore_ ? "B1 more  B2 list" : "B1 end  B2 list");
 }
 
-void ReadingApp::drawComplete(TFT_eSPI& tft) const {
+template <typename Canvas>
+void ReadingApp::drawComplete(Canvas& tft) const {
   drawShell(tft, width, height, "Reading");
   tft.setTextSize(4);
   tft.setTextColor(TFT_GREEN, TFT_BLACK);

@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -24,6 +25,57 @@ Preferences speedPrefs;
 
 const float RPM_CLIMB[MAX_GEAR] = {3300.0f, 2700.0f, 2200.0f, 1750.0f, 1400.0f, 1100.0f};
 const float SPEED_GAIN[MAX_GEAR] = {24.0f, 22.0f, 19.0f, 16.0f, 13.0f, 10.0f};
+
+template <typename Canvas>
+void drawTrafficLightsOn(Canvas& canvas, uint16_t countdownMs) {
+  const uint8_t lightsOn = (countdownMs + 999) / 1000;
+  const int y = 57;
+  for (uint8_t i = 0; i < 3; i++) {
+    const int x = 84 + (i * 36);
+    canvas.drawCircle(x, y, 14, TFT_LIGHTGREY);
+    if (i < lightsOn) {
+      canvas.fillCircle(x, y, 10, TFT_RED);
+    }
+  }
+}
+
+template <typename Canvas>
+void drawTachOn(Canvas& canvas, float rpm) {
+  const int cx = 158;
+  const int cy = 76;
+  const int radius = 43;
+  const float startAngle = 2.35f;
+  const float sweepAngle = 3.25f;
+  canvas.drawCircle(cx, cy, radius, TFT_LIGHTGREY);
+
+  const float lowAngle = startAngle + (PERFECT_LOW_RPM / REDLINE_RPM) * sweepAngle;
+  const float highAngle = startAngle + (PERFECT_HIGH_RPM / REDLINE_RPM) * sweepAngle;
+  for (float angle = lowAngle; angle <= highAngle; angle += 0.10f) {
+    canvas.drawLine(cx + static_cast<int>(cosf(angle) * 28), cy + static_cast<int>(sinf(angle) * 28),
+                    cx + static_cast<int>(cosf(angle) * 41), cy + static_cast<int>(sinf(angle) * 41), TFT_GREEN);
+  }
+
+  for (uint8_t i = 0; i <= 7; i++) {
+    const float angle = startAngle + (static_cast<float>(i) * sweepAngle / 7.0f);
+    const int x1 = cx + static_cast<int>(cosf(angle) * (radius - 8));
+    const int y1 = cy + static_cast<int>(sinf(angle) * (radius - 3));
+    const int x2 = cx + static_cast<int>(cosf(angle) * radius);
+    const int y2 = cy + static_cast<int>(sinf(angle) * radius);
+    canvas.drawLine(x1, y1, x2, y2, TFT_LIGHTGREY);
+  }
+
+  const float rpmRatio = min(1.0f, rpm / REDLINE_RPM);
+  const float needleAngle = startAngle + rpmRatio * sweepAngle;
+  canvas.drawLine(cx, cy, cx + static_cast<int>(cosf(needleAngle) * 34), cy + static_cast<int>(sinf(needleAngle) * 34),
+                  rpm >= LATE_RPM ? TFT_RED : TFT_YELLOW);
+  canvas.fillCircle(cx, cy, 4, TFT_WHITE);
+
+  canvas.setTextSize(2);
+  canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  canvas.setCursor(cx - 23, cy + 25);
+  canvas.print(static_cast<int>(rpm / 100.0f));
+  canvas.print("00");
+}
 }
 
 NeedSpeedGame::NeedSpeedGame(uint32_t width, uint32_t height)
@@ -144,39 +196,41 @@ void NeedSpeedGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const
 }
 
 void NeedSpeedGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Need Speed", TFT_RED, (String("L") + String(level_)).c_str());
-  if (raceState_ == RaceState::Countdown) {
-    drawTrafficLights(tft);
-    TDisplayUi::centered(tft, "WAIT", 84, 3, TFT_YELLOW);
-    TDisplayUi::footer(tft, "Launch when lights are out");
-    return;
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Need Speed", TFT_RED, (String("L") + String(level_)).c_str());
+    if (raceState_ == RaceState::Countdown) {
+      drawTrafficLightsOn(canvas, countdownMs_);
+      TDisplayUi::centered(canvas, "WAIT", 84, 3, TFT_YELLOW);
+      TDisplayUi::footer(canvas, "Launch when lights are out");
+      return;
+    }
 
-  if (raceState_ == RaceState::LaunchWait) {
-    drawTrafficLights(tft);
-    TDisplayUi::centered(tft, "GO", 79, 5, TFT_GREEN);
-    TDisplayUi::footer(tft, "B1 launch");
-    return;
-  }
+    if (raceState_ == RaceState::LaunchWait) {
+      drawTrafficLightsOn(canvas, countdownMs_);
+      TDisplayUi::centered(canvas, "GO", 79, 5, TFT_GREEN);
+      TDisplayUi::footer(canvas, "B1 launch");
+      return;
+    }
 
-  if (raceState_ == RaceState::LevelComplete) {
-    TDisplayUi::centered(tft, "Level Clear", 48, 3, TFT_GREEN);
-    TDisplayUi::centered(tft, "Next L" + String(level_ + 1), 86, 2, TFT_LIGHTGREY);
-    TDisplayUi::footer(tft, "Next race...");
-    return;
-  }
+    if (raceState_ == RaceState::LevelComplete) {
+      TDisplayUi::centered(canvas, "Level Clear", 48, 3, TFT_GREEN);
+      TDisplayUi::centered(canvas, "Next L" + String(level_ + 1), 86, 2, TFT_LIGHTGREY);
+      TDisplayUi::footer(canvas, "Next race...");
+      return;
+    }
 
-  drawTach(tft);
-  TDisplayUi::labelValue(tft, 34, "Gear", String(gear_), TFT_CYAN);
-  TDisplayUi::labelValue(tft, 57, "Speed", String(static_cast<int>(speed_ + 0.5f)) + " km/h", TFT_GREEN);
-  TDisplayUi::labelValue(tft, 80, "Time", String(raceMs_ / 1000) + "." + String((raceMs_ / 100) % 10) + "s", TFT_YELLOW);
+    drawTachOn(canvas, rpm_);
+    TDisplayUi::labelValue(canvas, 34, "Gear", String(gear_), TFT_CYAN);
+    TDisplayUi::labelValue(canvas, 57, "Speed", String(static_cast<int>(speed_ + 0.5f)) + " km/h", TFT_GREEN);
+    TDisplayUi::labelValue(canvas, 80, "Time", String(raceMs_ / 1000) + "." + String((raceMs_ / 100) % 10) + "s", TFT_YELLOW);
 
-  if (message_ != ShiftMessage::None) {
-    TDisplayUi::footer(tft, messageText());
-  } else {
-    TDisplayUi::footer(tft, "B1 shift in green band");
-  }
+    if (message_ != ShiftMessage::None) {
+      TDisplayUi::footer(canvas, messageText());
+    } else {
+      TDisplayUi::footer(canvas, "B1 shift in green band");
+    }
+  });
 }
 
 void NeedSpeedGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);
@@ -314,15 +368,7 @@ float NeedSpeedGame::levelSpeedMultiplier() const {
 }
 
 void NeedSpeedGame::drawTrafficLights(TFT_eSPI& tft) {
-  const uint8_t lightsOn = (countdownMs_ + 999) / 1000;
-  const int y = 57;
-  for (uint8_t i = 0; i < 3; i++) {
-    const int x = 84 + (i * 36);
-    tft.drawCircle(x, y, 14, TFT_LIGHTGREY);
-    if (i < lightsOn) {
-      tft.fillCircle(x, y, 10, TFT_RED);
-    }
-  }
+  drawTrafficLightsOn(tft, countdownMs_);
 }
 
 void NeedSpeedGame::drawCarSplash(TFT_eSPI& tft) {
@@ -342,40 +388,7 @@ void NeedSpeedGame::drawCarSplash(TFT_eSPI& tft) {
 }
 
 void NeedSpeedGame::drawTach(TFT_eSPI& tft) {
-  const int cx = 158;
-  const int cy = 76;
-  const int radius = 43;
-  const float startAngle = 2.35f;
-  const float sweepAngle = 3.25f;
-  tft.drawCircle(cx, cy, radius, TFT_LIGHTGREY);
-
-  const float lowAngle = startAngle + (PERFECT_LOW_RPM / REDLINE_RPM) * sweepAngle;
-  const float highAngle = startAngle + (PERFECT_HIGH_RPM / REDLINE_RPM) * sweepAngle;
-  for (float angle = lowAngle; angle <= highAngle; angle += 0.10f) {
-    tft.drawLine(cx + static_cast<int>(cosf(angle) * 28), cy + static_cast<int>(sinf(angle) * 28),
-                 cx + static_cast<int>(cosf(angle) * 41), cy + static_cast<int>(sinf(angle) * 41), TFT_GREEN);
-  }
-
-  for (uint8_t i = 0; i <= 7; i++) {
-    const float angle = startAngle + (static_cast<float>(i) * sweepAngle / 7.0f);
-    const int x1 = cx + static_cast<int>(cosf(angle) * (radius - 8));
-    const int y1 = cy + static_cast<int>(sinf(angle) * (radius - 3));
-    const int x2 = cx + static_cast<int>(cosf(angle) * radius);
-    const int y2 = cy + static_cast<int>(sinf(angle) * radius);
-    tft.drawLine(x1, y1, x2, y2, TFT_LIGHTGREY);
-  }
-
-  const float rpmRatio = min(1.0f, rpm_ / REDLINE_RPM);
-  const float needleAngle = startAngle + rpmRatio * sweepAngle;
-  tft.drawLine(cx, cy, cx + static_cast<int>(cosf(needleAngle) * 34), cy + static_cast<int>(sinf(needleAngle) * 34),
-               rpm_ >= LATE_RPM ? TFT_RED : TFT_YELLOW);
-  tft.fillCircle(cx, cy, 4, TFT_WHITE);
-
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setCursor(cx - 23, cy + 25);
-  tft.print(static_cast<int>(rpm_ / 100.0f));
-  tft.print("00");
+  drawTachOn(tft, rpm_);
 }
 
 const char* NeedSpeedGame::messageText() const {

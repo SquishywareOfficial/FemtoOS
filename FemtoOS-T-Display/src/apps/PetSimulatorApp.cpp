@@ -4,6 +4,8 @@
 #include <Preferences.h>
 #include <TFT_eSPI.h>
 
+#include "../../TDisplayFramebuffer.h"
+
 namespace {
 Preferences petPrefs;
 const char* PET_NAMES[] = {"Cat", "Dog", "Dino", "Blob"};
@@ -32,8 +34,8 @@ int8_t stepToward(int16_t current, int16_t target, int8_t step) {
   return 0;
 }
 
-void drawShell(TFT_eSPI& tft, uint32_t width, uint32_t height, const char* title) {
-  tft.fillScreen(TFT_BLACK);
+template <typename Canvas>
+void drawShell(Canvas& tft, uint32_t width, uint32_t height, const char* title) {
   tft.setTextDatum(TL_DATUM);
   tft.setTextSize(2);
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);
@@ -42,7 +44,8 @@ void drawShell(TFT_eSPI& tft, uint32_t width, uint32_t height, const char* title
   tft.drawRect(0, 0, width, height, TFT_DARKGREY);
 }
 
-void drawFooter(TFT_eSPI& tft, uint32_t width, uint32_t height, const char* text) {
+template <typename Canvas>
+void drawFooter(Canvas& tft, uint32_t width, uint32_t height, const char* text) {
   tft.fillRect(0, height - 17, width, 17, TFT_BLACK);
   tft.setTextSize(1);
   tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
@@ -348,7 +351,8 @@ void PetSimulatorApp::updateIdle(uint32_t deltaMs) {
   petY_ = constrain(static_cast<int>(petY_) + petDy_ * 2, 48, static_cast<int>(height) - 28);
 }
 
-void PetSimulatorApp::drawPet(TFT_eSPI& tft, int x, int y) {
+template <typename Canvas>
+void PetSimulatorApp::drawPet(Canvas& tft, int x, int y) {
   tft.setTextSize(1);
   if (petType_ == 0) {
     tft.drawCircle(x, y, 14, TFT_WHITE);
@@ -380,14 +384,16 @@ void PetSimulatorApp::drawPet(TFT_eSPI& tft, int x, int y) {
   }
 }
 
-void PetSimulatorApp::drawPoop(TFT_eSPI& tft, int x, int y) {
+template <typename Canvas>
+void PetSimulatorApp::drawPoop(Canvas& tft, int x, int y) {
   tft.fillCircle(x, y + 4, 4, TFT_BROWN);
   tft.fillCircle(x + 4, y + 3, 3, TFT_BROWN);
   tft.fillCircle(x - 4, y + 5, 3, TFT_BROWN);
   tft.drawPixel(x, y + 2, TFT_YELLOW);
 }
 
-void PetSimulatorApp::drawPoops(TFT_eSPI& tft) {
+template <typename Canvas>
+void PetSimulatorApp::drawPoops(Canvas& tft) {
   for (uint8_t i = 0; i < poop_; i++) {
     const int x = 28 + (i * 42) % static_cast<int>(width - 55);
     const int y = height - 32 - (i % 2) * 10;
@@ -395,7 +401,8 @@ void PetSimulatorApp::drawPoops(TFT_eSPI& tft) {
   }
 }
 
-void PetSimulatorApp::drawLowHealthWarning(TFT_eSPI& tft) {
+template <typename Canvas>
+void PetSimulatorApp::drawLowHealthWarning(Canvas& tft) {
   if (health_ == 0 || health_ > LOW_HEALTH_WARNING || ((millis() / 350) % 2) == 0) {
     return;
   }
@@ -405,7 +412,8 @@ void PetSimulatorApp::drawLowHealthWarning(TFT_eSPI& tft) {
   tft.drawString("LOW HP", width - 58, 12);
 }
 
-void PetSimulatorApp::drawBar(TFT_eSPI& tft, int x, int y, const char* label, uint8_t value) {
+template <typename Canvas>
+void PetSimulatorApp::drawBar(Canvas& tft, int x, int y, const char* label, uint8_t value) {
   tft.setTextSize(1);
   tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
   tft.drawString(label, x, y);
@@ -415,85 +423,85 @@ void PetSimulatorApp::drawBar(TFT_eSPI& tft, int x, int y, const char* label, ui
 }
 
 void PetSimulatorApp::drawRunning(TFT_eSPI& tft) {
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
   if (idleMode_) {
-    tft.fillScreen(TFT_BLACK);
-    drawPoops(tft);
-    drawPet(tft, petX_, petY_);
-    drawLowHealthWarning(tft);
-    drawFooter(tft, width, height, "B1 wake  B2 menu");
+    drawPoops(canvas);
+    drawPet(canvas, petX_, petY_);
+    drawLowHealthWarning(canvas);
+    drawFooter(canvas, width, height, "B1 wake  B2 menu");
     return;
   }
 
   if (mode_ == Mode::ChoosePet) {
-    drawShell(tft, width, height, "Choose Pet");
-    drawPet(tft, width / 2, 72);
-    tft.setTextSize(2);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.drawString(PET_NAMES[petType_], 18, 104);
-    drawFooter(tft, width, height, "B1 next/open  B2 back");
+    drawShell(canvas, width, height, "Choose Pet");
+    drawPet(canvas, width / 2, 72);
+    canvas.setTextSize(2);
+    canvas.setTextColor(TFT_GREEN, TFT_BLACK);
+    canvas.drawString(PET_NAMES[petType_], 18, 104);
+    drawFooter(canvas, width, height, "B1 next/open  B2 back");
     return;
   }
 
   if (mode_ == Mode::Dead) {
-    drawShell(tft, width, height, "Pet Simulator");
-    tft.setTextSize(4);
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.drawString("RIP", 84, 48);
-    tft.setTextSize(2);
-    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString(PET_NAMES[petType_], 86, 88);
-    drawFooter(tft, width, height, "B1 hold new pet  B2 menu");
+    drawShell(canvas, width, height, "Pet Simulator");
+    canvas.setTextSize(4);
+    canvas.setTextColor(TFT_RED, TFT_BLACK);
+    canvas.drawString("RIP", 84, 48);
+    canvas.setTextSize(2);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString(PET_NAMES[petType_], 86, 88);
+    drawFooter(canvas, width, height, "B1 hold new pet  B2 menu");
     return;
   }
 
   if (mode_ == Mode::PlayScene) {
-    tft.fillScreen(TFT_BLACK);
-    tft.drawRect(0, 0, width, height, TFT_DARKGREY);
-    drawPoops(tft);
-    tft.fillCircle(toyX_, toyY_, 4, TFT_CYAN);
-    tft.drawCircle(toyX_, toyY_, 7, TFT_BLUE);
-    drawPet(tft, petX_, petY_);
-    drawFooter(tft, width, height, "Playing...");
+    canvas.drawRect(0, 0, width, height, TFT_DARKGREY);
+    drawPoops(canvas);
+    canvas.fillCircle(toyX_, toyY_, 4, TFT_CYAN);
+    canvas.drawCircle(toyX_, toyY_, 7, TFT_BLUE);
+    drawPet(canvas, petX_, petY_);
+    drawFooter(canvas, width, height, "Playing...");
     return;
   }
 
   if (mode_ == Mode::Stats) {
-    drawShell(tft, width, height, "Pet Stats");
-    drawBar(tft, 24, 47, "Hunger", hunger_);
-    drawBar(tft, 24, 63, "Fun", fun_);
-    drawBar(tft, 24, 79, "Energy", energy_);
-    drawBar(tft, 24, 95, "Clean", clean_);
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setCursor(186, 79);
-    tft.print("HP ");
-    tft.print(health_);
-    drawLowHealthWarning(tft);
-    drawFooter(tft, width, height, "B1/B2 back");
+    drawShell(canvas, width, height, "Pet Stats");
+    drawBar(canvas, 24, 47, "Hunger", hunger_);
+    drawBar(canvas, 24, 63, "Fun", fun_);
+    drawBar(canvas, 24, 79, "Energy", energy_);
+    drawBar(canvas, 24, 95, "Clean", clean_);
+    canvas.setTextSize(1);
+    canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+    canvas.setCursor(186, 79);
+    canvas.print("HP ");
+    canvas.print(health_);
+    drawLowHealthWarning(canvas);
+    drawFooter(canvas, width, height, "B1/B2 back");
     return;
   }
 
   if (mode_ == Mode::Message) {
-    drawShell(tft, width, height, PET_NAMES[petType_]);
-    drawPoops(tft);
-    drawPet(tft, 72, 76);
-    tft.setTextSize(3);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.drawString(message_, 126, 64);
-    drawLowHealthWarning(tft);
-    drawFooter(tft, width, height, "B1 continue  B2 back");
+    drawShell(canvas, width, height, PET_NAMES[petType_]);
+    drawPoops(canvas);
+    drawPet(canvas, 72, 76);
+    canvas.setTextSize(3);
+    canvas.setTextColor(TFT_GREEN, TFT_BLACK);
+    canvas.drawString(message_, 126, 64);
+    drawLowHealthWarning(canvas);
+    drawFooter(canvas, width, height, "B1 continue  B2 back");
     return;
   }
 
-  drawShell(tft, width, height, PET_NAMES[petType_]);
-  drawPoops(tft);
-  drawPet(tft, 66, 74);
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawString("Action", 126, 51);
-  tft.fillRect(122, 75, 94, 28, TFT_GREEN);
-  tft.setTextColor(TFT_BLACK, TFT_GREEN);
-  tft.drawString(ACTIONS[menuIndex_], 132, 82);
-  drawLowHealthWarning(tft);
-  drawFooter(tft, width, height, "B1 next/open  B2 menu");
+  drawShell(canvas, width, height, PET_NAMES[petType_]);
+  drawPoops(canvas);
+  drawPet(canvas, 66, 74);
+  canvas.setTextSize(2);
+  canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  canvas.drawString("Action", 126, 51);
+  canvas.fillRect(122, 75, 94, 28, TFT_GREEN);
+  canvas.setTextColor(TFT_BLACK, TFT_GREEN);
+  canvas.drawString(ACTIONS[menuIndex_], 132, 82);
+  drawLowHealthWarning(canvas);
+  drawFooter(canvas, width, height, "B1 next/open  B2 menu");
+  });
 }

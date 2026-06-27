@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -191,15 +192,6 @@ void Breakout76Game::updateRunning(uint32_t deltaMs, const ButtonInput& b1, cons
 }
 
 void Breakout76Game::drawRunning(TFT_eSPI& tft) {
-  static TFT_eSprite frame(&tft);
-  static bool frameTried = false;
-  static bool frameReady = false;
-  if (!frameTried) {
-    frameTried = true;
-    frame.setColorDepth(8);
-    frameReady = frame.createSprite(width, height) != nullptr;
-  }
-
   auto drawScene = [this](auto& canvas) {
     TDisplayUi::clear(canvas);
     const String stat = "L" + String(level_) + "  " + String(score_);
@@ -230,12 +222,7 @@ void Breakout76Game::drawRunning(TFT_eSPI& tft) {
     canvas.fillRoundRect(static_cast<int>(paddleX_), PADDLE_Y, paddleW_, 6, 3, wideTimerMs_ > 0 ? TFT_GREEN : TFT_WHITE);
   };
 
-  if (frameReady) {
-    drawScene(frame);
-    frame.pushSprite(0, 0);
-  } else {
-    drawScene(tft);
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), drawScene);
 }
 
 void Breakout76Game::drawStart(TFT_eSPI& tft) {

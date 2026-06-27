@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -73,43 +74,44 @@ void PipeManiaGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const
 }
 
 void PipeManiaGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  const String stat = "L" + String(level_) + " " + String(flowedCount_) + "/" + String(targetCount_);
-  TDisplayUi::header(tft, "Pipe Mania", TFT_GREEN, stat.c_str());
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    const String stat = "L" + String(level_) + " " + String(flowedCount_) + "/" + String(targetCount_);
+    TDisplayUi::header(canvas, "Pipe Mania", TFT_GREEN, stat.c_str());
 
-  for (uint8_t i = 0; i < CELL_COUNT; i++) {
-    const uint8_t c = i % COLS;
-    const uint8_t r = i / COLS;
-    const int x = GRID_X + c * CELL;
-    const int y = GRID_Y + r * CELL;
-    tft.drawRect(x, y, CELL, CELL, TFT_DARKGREY);
-    drawPipe(tft, x, y, grid_[i], filled_[i]);
-    if (i == cursor_ && pipeState_ == PipeState::Build) {
-      if (((millis() / 180) % 2) == 0) {
-        tft.drawRect(x - 2, y - 2, CELL + 4, CELL + 4, TFT_YELLOW);
-        tft.drawRect(x - 3, y - 3, CELL + 6, CELL + 6, TFT_ORANGE);
+    for (uint8_t i = 0; i < CELL_COUNT; i++) {
+      const uint8_t c = i % COLS;
+      const uint8_t r = i / COLS;
+      const int x = GRID_X + c * CELL;
+      const int y = GRID_Y + r * CELL;
+      canvas.drawRect(x, y, CELL, CELL, TFT_DARKGREY);
+      drawPipe(canvas, x, y, grid_[i], filled_[i]);
+      if (i == cursor_ && pipeState_ == PipeState::Build) {
+        if (((millis() / 180) % 2) == 0) {
+          canvas.drawRect(x - 2, y - 2, CELL + 4, CELL + 4, TFT_YELLOW);
+          canvas.drawRect(x - 3, y - 3, CELL + 6, CELL + 6, TFT_ORANGE);
+        }
+        drawPipe(canvas, x, y, currentPiece_, false);
       }
-      drawPipe(tft, x, y, currentPiece_, false);
     }
-  }
 
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString("Next", 158, 38);
-  tft.drawRect(168, 62, CELL + 8, CELL + 8, TFT_DARKGREY);
-  drawPipe(tft, 172, 66, currentPiece_, false);
-  if (pipeState_ == PipeState::Build) {
-    if (cursor_ >= CELL_COUNT) {
-      TDisplayUi::centered(tft, "Blocked", 101, 2, TFT_RED);
+    canvas.setTextSize(2);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString("Next", 158, 38);
+    canvas.drawRect(168, 62, CELL + 8, CELL + 8, TFT_DARKGREY);
+    drawPipe(canvas, 172, 66, currentPiece_, false);
+    if (pipeState_ == PipeState::Build) {
+      if (cursor_ >= CELL_COUNT) {
+        TDisplayUi::centered(canvas, "Blocked", 101, 2, TFT_RED);
+      } else {
+        TDisplayUi::largeValue(canvas, String((buildDelayMs() - min(buildTimerMs_, buildDelayMs())) / 1000), 91, TFT_YELLOW);
+      }
+    } else if (pipeState_ == PipeState::Complete) {
+      TDisplayUi::centered(canvas, "Clear", 96, 2, TFT_GREEN);
     } else {
-      TDisplayUi::largeValue(tft, String((buildDelayMs() - min(buildTimerMs_, buildDelayMs())) / 1000), 91, TFT_YELLOW);
+      TDisplayUi::centered(canvas, "Goo", 96, 2, TFT_GREEN);
     }
-  } else if (pipeState_ == PipeState::Complete) {
-    TDisplayUi::centered(tft, "Clear", 96, 2, TFT_GREEN);
-  } else {
-    TDisplayUi::centered(tft, "Goo", 96, 2, TFT_GREEN);
-  }
-  TDisplayUi::footer(tft, pipeState_ == PipeState::Build ? "B1 piece  Hold place" : "Flowing...");
+    TDisplayUi::footer(canvas, pipeState_ == PipeState::Build ? "B1 piece  Hold place" : "Flowing...");
+  });
 }
 
 void PipeManiaGame::drawStart(TFT_eSPI& tft) {
@@ -340,7 +342,8 @@ bool PipeManiaGame::stepCell(uint8_t cell, Direction dir, uint8_t& nextCell) con
   return false;
 }
 
-void PipeManiaGame::drawPipe(TFT_eSPI& tft, int x, int y, PipeType pipe, bool filled) {
+template <typename Canvas>
+void PipeManiaGame::drawPipe(Canvas& tft, int x, int y, PipeType pipe, bool filled) {
   const int cx = x + CELL / 2;
   const int cy = y + CELL / 2;
   const int r = max(2, CELL / 6);

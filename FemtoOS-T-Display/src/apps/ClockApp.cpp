@@ -6,6 +6,7 @@
 #include <math.h>
 #include <time.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -627,25 +628,8 @@ void ClockApp::drawRunning(TFT_eSPI& tft) {
     return;
   }
 
-  if (needsFullRedraw()) {
-    static TFT_eSprite frame(&tft);
-    static bool frameTried = false;
-    static bool frameReady = false;
-    if (!frameTried) {
-      frameTried = true;
-      frame.setColorDepth(8);
-      frameReady = frame.createSprite(TDisplayUi::W, TDisplayUi::H) != nullptr;
-    }
-
-    if (frameReady) {
-      drawClockFrame(frame, now);
-      frame.pushSprite(0, 0);
-    } else {
-      drawClockFrame(tft, now);
-    }
-  } else {
-    drawSecondTick(tft, now);
-  }
+  TDisplayFramebuffer::draw(tft, TDisplayUi::W, TDisplayUi::H,
+                            [&](auto& canvas) { drawClockFrame(canvas, now); });
 
   noteRendered(now);
 }

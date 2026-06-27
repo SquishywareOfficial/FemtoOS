@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -20,6 +21,74 @@ constexpr float FUEL_BURN = 24.0f;
 constexpr float BURN_CUE_REACTION_SEC = 0.35f;
 constexpr uint16_t BRIEFING_INPUT_LOCK_MS = 1000;
 Preferences landerPrefs;
+
+template <typename Canvas>
+void drawSafeSpeedSignOn(Canvas& canvas, int x, int y, int safeSpeed) {
+  canvas.fillCircle(x, y, 18, TFT_WHITE);
+  canvas.drawCircle(x, y, 17, TFT_RED);
+  canvas.drawCircle(x, y, 16, TFT_RED);
+  canvas.setTextSize(2);
+  canvas.setTextColor(TFT_BLACK, TFT_WHITE);
+  canvas.setCursor(x - (safeSpeed >= 10 ? 11 : 5), y - 7);
+  canvas.print(safeSpeed);
+}
+
+template <typename Canvas>
+void drawBriefingOn(Canvas& canvas,
+                    uint8_t level,
+                    float startFuel,
+                    float gravity,
+                    float safeSpeed,
+                    bool acceptingInput) {
+  TDisplayUi::header(canvas, "Landing Brief", TFT_CYAN, (String("L") + String(level)).c_str());
+  TDisplayUi::labelValue(canvas, 41, "Fuel", String(static_cast<int>(startFuel + 0.5f)), TFT_GREEN);
+  TDisplayUi::labelValue(canvas, 65, "Gravity", String(static_cast<int>(gravity + 0.5f)), TFT_YELLOW);
+  TDisplayUi::labelValue(canvas, 89, "Safe V", "<= " + String(static_cast<int>(safeSpeed + 0.5f)), TFT_CYAN);
+  TDisplayUi::footer(canvas, acceptingInput ? "B1 start descent" : "Ready...");
+}
+
+template <typename Canvas>
+void drawHudOn(Canvas& canvas,
+               uint8_t level,
+               bool thrusting,
+               float altitude,
+               float velocity,
+               float fuel,
+               float startFuel) {
+  TDisplayUi::header(canvas, "Mini Lander", thrusting ? TFT_ORANGE : TFT_CYAN, (String("L") + String(level)).c_str());
+  canvas.setTextSize(2);
+  canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+  canvas.drawString("A " + String(static_cast<int>(altitude + 0.5f)), 10, 34);
+  canvas.drawString("V " + String(static_cast<int>(velocity + 0.5f)), 10, 56);
+  const uint16_t fuelColor = fuel <= startFuel * 0.2f ? TFT_RED : TFT_GREEN;
+  TDisplayUi::bar(canvas, 10, 83, 64, 10, fuel / startFuel, fuelColor);
+  canvas.setTextSize(1);
+  canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  canvas.drawString("Fuel", 10, 96);
+}
+
+template <typename Canvas>
+void drawLanderOn(Canvas& canvas, int x, int y, bool thrusting) {
+  canvas.fillTriangle(x, y - 12, x - 9, y + 5, x + 9, y + 5, TFT_LIGHTGREY);
+  canvas.drawTriangle(x, y - 12, x - 9, y + 5, x + 9, y + 5, TFT_WHITE);
+  canvas.drawLine(x - 9, y + 5, x - 15, y + 13, TFT_WHITE);
+  canvas.drawLine(x + 9, y + 5, x + 15, y + 13, TFT_WHITE);
+  canvas.drawFastHLine(x - 18, y + 13, 11, TFT_WHITE);
+  canvas.drawFastHLine(x + 7, y + 13, 11, TFT_WHITE);
+  if (thrusting) {
+    canvas.fillTriangle(x - 5, y + 7, x + 5, y + 7, x, y + 25, TFT_ORANGE);
+    canvas.drawLine(x - 2, y + 8, x, y + 21, TFT_YELLOW);
+    canvas.drawLine(x + 2, y + 8, x, y + 21, TFT_YELLOW);
+  }
+}
+
+template <typename Canvas>
+void drawGroundOn(Canvas& canvas, uint32_t width) {
+  canvas.drawLine(1, GROUND_Y, width - 2, GROUND_Y, TFT_LIGHTGREY);
+  canvas.fillRect(SHIP_X - 30, GROUND_Y - 2, 60, 4, TFT_GREEN);
+  canvas.drawPixel(30, GROUND_Y - 8, TFT_LIGHTGREY);
+  canvas.drawPixel(205, GROUND_Y - 13, TFT_LIGHTGREY);
+}
 }
 
 MiniLanderGame::MiniLanderGame(uint32_t width, uint32_t height)
@@ -105,23 +174,26 @@ void MiniLanderGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, cons
 }
 
 void MiniLanderGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  if (landerState_ == LanderState::Briefing) {
-    drawBriefing(tft);
-    return;
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    if (landerState_ == LanderState::Briefing) {
+      const bool acceptingInput = briefingTimerMs_ >= BRIEFING_INPUT_LOCK_MS && briefingCanAcceptInput_;
+      drawBriefingOn(canvas, level_, startFuel_, levelGravity(), levelSafeSpeed(), acceptingInput);
+      return;
+    }
 
-  drawHud(tft);
-  drawGround(tft);
+    drawHudOn(canvas, level_, thrusting_, altitude_, velocity_, fuel_, startFuel_);
+    drawGroundOn(canvas, width);
 
-  const float altitudeRatio = altitude_ / startAltitude_;
-  const int altitudePixels = altitude_ <= 0.0f ? 0 : max(1, static_cast<int>(ceilf(altitudeRatio * 78.0f)));
-  const int shipY = GROUND_Y - LANDER_FOOT_OFFSET - altitudePixels;
-  drawLander(tft, SHIP_X, shipY, thrusting_);
+    const float altitudeRatio = altitude_ / startAltitude_;
+    const int altitudePixels = altitude_ <= 0.0f ? 0 : max(1, static_cast<int>(ceilf(altitudeRatio * 78.0f)));
+    const int shipY = GROUND_Y - LANDER_FOOT_OFFSET - altitudePixels;
+    drawLanderOn(canvas, SHIP_X, shipY, thrusting_);
 
-  if (landerState_ == LanderState::Landed) {
-    TDisplayUi::centered(tft, "LANDED", 54, 4, TFT_GREEN);
-  }
+    if (landerState_ == LanderState::Landed) {
+      TDisplayUi::centered(canvas, "LANDED", 54, 4, TFT_GREEN);
+    }
+  });
 }
 
 void MiniLanderGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);
@@ -250,57 +322,22 @@ void MiniLanderGame::setBurnHintLed(bool on) {
 }
 
 void MiniLanderGame::drawSafeSpeedSign(TFT_eSPI& tft, int x, int y, int safeSpeed) {
-  tft.fillCircle(x, y, 18, TFT_WHITE);
-  tft.drawCircle(x, y, 17, TFT_RED);
-  tft.drawCircle(x, y, 16, TFT_RED);
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setCursor(x - (safeSpeed >= 10 ? 11 : 5), y - 7);
-  tft.print(safeSpeed);
+  drawSafeSpeedSignOn(tft, x, y, safeSpeed);
 }
 
 void MiniLanderGame::drawBriefing(TFT_eSPI& tft) {
-  TDisplayUi::header(tft, "Landing Brief", TFT_CYAN, (String("L") + String(level_)).c_str());
-  TDisplayUi::labelValue(tft, 41, "Fuel", String(static_cast<int>(startFuel_ + 0.5f)), TFT_GREEN);
-  TDisplayUi::labelValue(tft, 65, "Gravity", String(static_cast<int>(levelGravity() + 0.5f)), TFT_YELLOW);
-  TDisplayUi::labelValue(tft, 89, "Safe V", "<= " + String(static_cast<int>(levelSafeSpeed() + 0.5f)), TFT_CYAN);
-  if (briefingTimerMs_ < BRIEFING_INPUT_LOCK_MS || !briefingCanAcceptInput_) {
-    TDisplayUi::footer(tft, "Ready...");
-  } else {
-    TDisplayUi::footer(tft, "B1 start descent");
-  }
+  const bool acceptingInput = briefingTimerMs_ >= BRIEFING_INPUT_LOCK_MS && briefingCanAcceptInput_;
+  drawBriefingOn(tft, level_, startFuel_, levelGravity(), levelSafeSpeed(), acceptingInput);
 }
 
 void MiniLanderGame::drawHud(TFT_eSPI& tft) {
-  TDisplayUi::header(tft, "Mini Lander", thrusting_ ? TFT_ORANGE : TFT_CYAN, (String("L") + String(level_)).c_str());
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.drawString("A " + String(static_cast<int>(altitude_ + 0.5f)), 10, 34);
-  tft.drawString("V " + String(static_cast<int>(velocity_ + 0.5f)), 10, 56);
-  const uint16_t fuelColor = fuel_ <= startFuel_ * 0.2f ? TFT_RED : TFT_GREEN;
-  TDisplayUi::bar(tft, 10, 83, 64, 10, fuel_ / startFuel_, fuelColor);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString("Fuel", 10, 96);
+  drawHudOn(tft, level_, thrusting_, altitude_, velocity_, fuel_, startFuel_);
 }
 
 void MiniLanderGame::drawLander(TFT_eSPI& tft, int x, int y, bool thrusting) {
-  tft.fillTriangle(x, y - 12, x - 9, y + 5, x + 9, y + 5, TFT_LIGHTGREY);
-  tft.drawTriangle(x, y - 12, x - 9, y + 5, x + 9, y + 5, TFT_WHITE);
-  tft.drawLine(x - 9, y + 5, x - 15, y + 13, TFT_WHITE);
-  tft.drawLine(x + 9, y + 5, x + 15, y + 13, TFT_WHITE);
-  tft.drawFastHLine(x - 18, y + 13, 11, TFT_WHITE);
-  tft.drawFastHLine(x + 7, y + 13, 11, TFT_WHITE);
-  if (thrusting) {
-    tft.fillTriangle(x - 5, y + 7, x + 5, y + 7, x, y + 25, TFT_ORANGE);
-    tft.drawLine(x - 2, y + 8, x, y + 21, TFT_YELLOW);
-    tft.drawLine(x + 2, y + 8, x, y + 21, TFT_YELLOW);
-  }
+  drawLanderOn(tft, x, y, thrusting);
 }
 
 void MiniLanderGame::drawGround(TFT_eSPI& tft) {
-  tft.drawLine(1, GROUND_Y, width - 2, GROUND_Y, TFT_LIGHTGREY);
-  tft.fillRect(SHIP_X - 30, GROUND_Y - 2, 60, 4, TFT_GREEN);
-  tft.drawPixel(30, GROUND_Y - 8, TFT_LIGHTGREY);
-  tft.drawPixel(205, GROUND_Y - 13, TFT_LIGHTGREY);
+  drawGroundOn(tft, width);
 }

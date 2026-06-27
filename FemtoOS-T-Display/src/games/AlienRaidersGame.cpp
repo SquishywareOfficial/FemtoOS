@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 namespace {
 Preferences alienPrefs;
 constexpr uint8_t PORTRAIT_ROTATION = 0;
@@ -30,30 +31,102 @@ void clearPortrait(TFT_eSPI& tft) {
   tft.setTextDatum(TL_DATUM);
 }
 
-void drawPortraitHeader(TFT_eSPI& tft, const char* title, uint16_t color, const String& stat = String()) {
-  tft.fillRect(0, 0, PORTRAIT_W, HUD_H, TFT_BLACK);
-  tft.setTextSize(1);
-  tft.setTextColor(color, TFT_BLACK);
-  tft.drawString(title, 5, 6);
+template <typename Canvas>
+void drawPortraitHeader(Canvas& canvas, const char* title, uint16_t color, const String& stat = String()) {
+  canvas.fillRect(0, 0, PORTRAIT_W, HUD_H, TFT_BLACK);
+  canvas.setTextSize(1);
+  canvas.setTextColor(color, TFT_BLACK);
+  canvas.drawString(title, 5, 6);
   if (stat.length() > 0) {
-    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString(stat, PORTRAIT_W - tft.textWidth(stat) - 5, 6);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString(stat, PORTRAIT_W - canvas.textWidth(stat) - 5, 6);
   }
-  tft.drawFastHLine(0, HUD_H - 1, PORTRAIT_W, TFT_DARKGREY);
+  canvas.drawFastHLine(0, HUD_H - 1, PORTRAIT_W, TFT_DARKGREY);
 }
 
-void drawPortraitFooter(TFT_eSPI& tft, const char* text) {
-  tft.fillRect(0, PORTRAIT_H - 17, PORTRAIT_W, 17, TFT_BLACK);
-  tft.drawFastHLine(0, PORTRAIT_H - 18, PORTRAIT_W, TFT_DARKGREY);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString(text, 5, PORTRAIT_H - 13);
+template <typename Canvas>
+void drawPortraitFooter(Canvas& canvas, const char* text) {
+  canvas.fillRect(0, PORTRAIT_H - 17, PORTRAIT_W, 17, TFT_BLACK);
+  canvas.drawFastHLine(0, PORTRAIT_H - 18, PORTRAIT_W, TFT_DARKGREY);
+  canvas.setTextSize(1);
+  canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  canvas.drawString(text, 5, PORTRAIT_H - 13);
 }
 
-void drawCentered(TFT_eSPI& tft, const String& text, int y, uint8_t size, uint16_t color) {
-  tft.setTextSize(size);
-  tft.setTextColor(color, TFT_BLACK);
-  tft.drawString(text, (PORTRAIT_W - tft.textWidth(text)) / 2, y);
+template <typename Canvas>
+void drawCentered(Canvas& canvas, const String& text, int y, uint8_t size, uint16_t color) {
+  canvas.setTextSize(size);
+  canvas.setTextColor(color, TFT_BLACK);
+  canvas.drawString(text, (PORTRAIT_W - canvas.textWidth(text)) / 2, y);
+}
+
+template <typename Canvas, typename EnemyLike>
+void drawEnemyShape(Canvas& canvas, const EnemyLike& enemy, int laneX0, int laneX1, int laneX2, int laneXEnemy) {
+  const int y = static_cast<int>(enemy.x);
+  if (enemy.boss) {
+    const int left = laneX0 - 18;
+    const int right = laneX2 + 18;
+    canvas.fillRect(left + 8, y + 6, right - left - 16, 20, TFT_PURPLE);
+    canvas.drawTriangle(laneX1, y + 42, left, y, right, y, TFT_MAGENTA);
+    if (enemy.hp > 0) canvas.drawRoundRect(left - 3, y - 4, right - left + 6, 51, 8, TFT_BLUE);
+    if (enemy.hp > enemy.maxHp / 3) canvas.drawRoundRect(left - 7, y - 8, right - left + 14, 59, 10, TFT_CYAN);
+    if (enemy.hp > (enemy.maxHp * 2) / 3) canvas.drawRoundRect(left - 11, y - 12, right - left + 22, 67, 12, TFT_WHITE);
+
+    canvas.setTextSize(2);
+    canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+    canvas.drawString(String(static_cast<int>(enemy.hp)), laneX1 - 8, y + 16);
+    return;
+  }
+
+  canvas.fillTriangle(laneXEnemy, y + 13, laneXEnemy - 11, y - 9, laneXEnemy + 11, y - 9, enemy.maxHp > 1 ? TFT_ORANGE : TFT_RED);
+  canvas.drawTriangle(laneXEnemy, y + 13, laneXEnemy - 11, y - 9, laneXEnemy + 11, y - 9, TFT_WHITE);
+  const uint8_t shieldLayers = enemy.hp > 1 ? enemy.hp - 1 : 0;
+  if (shieldLayers >= 1) canvas.drawCircle(laneXEnemy, y, 14, TFT_CYAN);
+  if (shieldLayers >= 2) canvas.drawCircle(laneXEnemy, y, 18, TFT_BLUE);
+  if (shieldLayers >= 3) canvas.drawCircle(laneXEnemy, y, 22, TFT_LIGHTGREY);
+  if (shieldLayers >= 4) {
+    canvas.setTextSize(1);
+    canvas.setTextColor(TFT_WHITE, TFT_BLACK);
+    canvas.drawString(String(static_cast<int>(enemy.hp)), laneXEnemy - 4, y - 4);
+  }
+}
+
+template <typename Canvas, typename PowerLike>
+void drawPowerShape(Canvas& canvas, const PowerLike& power, int laneXPower) {
+  const int y = static_cast<int>(power.x);
+  if (power.type == 5) {
+    canvas.fillCircle(laneXPower, y, 8, TFT_DARKGREY);
+    canvas.drawCircle(laneXPower, y, 8, TFT_WHITE);
+    canvas.drawLine(laneXPower, y - 8, laneXPower + 6, y - 14, TFT_WHITE);
+    canvas.fillCircle(laneXPower + 8, y - 14, 2, TFT_ORANGE);
+    return;
+  }
+  canvas.drawCircle(laneXPower, y, 8, TFT_GREEN);
+  canvas.drawLine(laneXPower - 6, y, laneXPower + 6, y, TFT_GREEN);
+  canvas.drawLine(laneXPower, y - 6, laneXPower, y + 6, TFT_GREEN);
+}
+
+template <typename Canvas>
+void drawIntroFrame(Canvas& canvas, uint16_t timerMs, int lane0, int lane1, int lane2) {
+  drawPortraitHeader(canvas, "Alien Raiders", TFT_CYAN);
+  const int stationY = 184;
+  const int shipY = 164 - min<int>(92, timerMs / 18);
+  const int enemyY = 48;
+
+  canvas.fillRoundRect(36, stationY, 63, 35, 4, TFT_DARKGREY);
+  canvas.drawRoundRect(36, stationY, 63, 35, 4, TFT_LIGHTGREY);
+  canvas.fillRect(46, stationY + 8, 13, 8, TFT_BLUE);
+  canvas.fillRect(76, stationY + 8, 13, 8, TFT_BLUE);
+  canvas.fillTriangle(lane1, shipY, lane1 - 10, shipY + 22, lane1 + 10, shipY + 22, TFT_CYAN);
+  canvas.drawTriangle(lane1, shipY, lane1 - 10, shipY + 22, lane1 + 10, shipY + 22, TFT_WHITE);
+  if (timerMs > 1000) {
+    canvas.fillTriangle(lane0, enemyY + 22, lane0 - 11, enemyY, lane0 + 11, enemyY, TFT_RED);
+    canvas.fillTriangle(lane2, enemyY + 42, lane2 - 11, enemyY + 20, lane2 + 11, enemyY + 20, TFT_ORANGE);
+    drawCentered(canvas, "Defend", 121, 2, TFT_YELLOW);
+    drawCentered(canvas, "Station", 143, 2, TFT_YELLOW);
+  } else {
+    drawCentered(canvas, "Launch", 130, 2, TFT_LIGHTGREY);
+  }
 }
 }
 
@@ -346,118 +419,66 @@ void AlienRaidersGame::fireBossShot(int8_t dy) {
 }
 
 void AlienRaidersGame::drawRunning(TFT_eSPI& tft) {
-  clearPortrait(tft);
-  if (introActive_) {
-    drawIntro(tft);
-    return;
-  }
+  setPortrait(tft);
+  TDisplayFramebuffer::draw(tft, PORTRAIT_W, PORTRAIT_H, [&](auto& canvas) {
+    canvas.fillScreen(TFT_BLACK);
+    canvas.setTextDatum(TL_DATUM);
 
-  const String stat = String(score_) + " W" + String(weaponLevel_) + " H" + String(health_);
-  drawPortraitHeader(tft, "Raiders", TFT_CYAN, stat);
-  for (uint8_t lane = 0; lane < LANES; lane++) {
-    tft.drawFastVLine(laneX(lane), PLAY_TOP, PLAY_BOTTOM - PLAY_TOP, TFT_DARKGREY);
-  }
-  tft.fillRect(13, SHIP_Y + 20, PORTRAIT_W - 26, 10, TFT_DARKGREY);
-  tft.fillRect(laneX(0) - 9, SHIP_Y + 23, 18, 5, TFT_BLUE);
-  tft.fillRect(laneX(1) - 9, SHIP_Y + 23, 18, 5, TFT_BLUE);
-  tft.fillRect(laneX(2) - 9, SHIP_Y + 23, 18, 5, TFT_BLUE);
-  const int shipX = laneX(shipLane_);
-  tft.drawTriangle(shipX, SHIP_Y - 15, shipX - 11, SHIP_Y + 10, shipX + 11, SHIP_Y + 10, TFT_WHITE);
-  tft.fillTriangle(shipX, SHIP_Y - 11, shipX - 7, SHIP_Y + 7, shipX + 7, SHIP_Y + 7, TFT_CYAN);
-  if (shieldHits_ > 0) tft.drawCircle(shipX, SHIP_Y, 15, TFT_GREEN);
-  if (shieldHits_ > 2) tft.drawCircle(shipX, SHIP_Y, 19, TFT_GREEN);
-  if (shieldHits_ > 5) tft.drawCircle(shipX, SHIP_Y, 23, TFT_GREEN);
-  for (uint8_t i = 0; i < ENEMIES; i++) if (enemies_[i].active) drawEnemy(tft, enemies_[i]);
-  for (uint8_t i = 0; i < SHOTS; i++) {
-    if (shots_[i].active) {
-      const int x = static_cast<int>(shots_[i].x);
-      const int y = static_cast<int>(shots_[i].y);
-      tft.drawFastVLine(x, y - 6, 8, TFT_YELLOW);
-      tft.drawPixel(x, y - 7, TFT_WHITE);
+    if (introActive_) {
+      drawIntroFrame(canvas, introTimerMs_, laneX(0), laneX(1), laneX(2));
+      return;
     }
-  }
-  for (uint8_t i = 0; i < ENEMY_SHOTS; i++) {
-    if (!enemyShots_[i].active) continue;
-    const int x = static_cast<int>(enemyShots_[i].x);
-    const int y = static_cast<int>(enemyShots_[i].y);
-    tft.drawLine(x, y - 2, x, y + 7, TFT_RED);
-    tft.drawPixel(x, y + 8, TFT_YELLOW);
-  }
-  for (uint8_t i = 0; i < POWERS; i++) {
-    if (!powers_[i].active) continue;
-    drawPower(tft, powers_[i]);
-  }
+
+    const String stat = String(score_) + " W" + String(weaponLevel_) + " H" + String(health_);
+    drawPortraitHeader(canvas, "Raiders", TFT_CYAN, stat);
+    for (uint8_t lane = 0; lane < LANES; lane++) {
+      canvas.drawFastVLine(laneX(lane), PLAY_TOP, PLAY_BOTTOM - PLAY_TOP, TFT_DARKGREY);
+    }
+    canvas.fillRect(13, SHIP_Y + 20, PORTRAIT_W - 26, 10, TFT_DARKGREY);
+    canvas.fillRect(laneX(0) - 9, SHIP_Y + 23, 18, 5, TFT_BLUE);
+    canvas.fillRect(laneX(1) - 9, SHIP_Y + 23, 18, 5, TFT_BLUE);
+    canvas.fillRect(laneX(2) - 9, SHIP_Y + 23, 18, 5, TFT_BLUE);
+    const int shipX = laneX(shipLane_);
+    canvas.drawTriangle(shipX, SHIP_Y - 15, shipX - 11, SHIP_Y + 10, shipX + 11, SHIP_Y + 10, TFT_WHITE);
+    canvas.fillTriangle(shipX, SHIP_Y - 11, shipX - 7, SHIP_Y + 7, shipX + 7, SHIP_Y + 7, TFT_CYAN);
+    if (shieldHits_ > 0) canvas.drawCircle(shipX, SHIP_Y, 15, TFT_GREEN);
+    if (shieldHits_ > 2) canvas.drawCircle(shipX, SHIP_Y, 19, TFT_GREEN);
+    if (shieldHits_ > 5) canvas.drawCircle(shipX, SHIP_Y, 23, TFT_GREEN);
+    for (uint8_t i = 0; i < ENEMIES; i++) {
+      if (enemies_[i].active) drawEnemyShape(canvas, enemies_[i], laneX(0), laneX(1), laneX(2), laneX(enemies_[i].lane));
+    }
+    for (uint8_t i = 0; i < SHOTS; i++) {
+      if (shots_[i].active) {
+        const int x = static_cast<int>(shots_[i].x);
+        const int y = static_cast<int>(shots_[i].y);
+        canvas.drawFastVLine(x, y - 6, 8, TFT_YELLOW);
+        canvas.drawPixel(x, y - 7, TFT_WHITE);
+      }
+    }
+    for (uint8_t i = 0; i < ENEMY_SHOTS; i++) {
+      if (!enemyShots_[i].active) continue;
+      const int x = static_cast<int>(enemyShots_[i].x);
+      const int y = static_cast<int>(enemyShots_[i].y);
+      canvas.drawLine(x, y - 2, x, y + 7, TFT_RED);
+      canvas.drawPixel(x, y + 8, TFT_YELLOW);
+    }
+    for (uint8_t i = 0; i < POWERS; i++) {
+      if (!powers_[i].active) continue;
+      drawPowerShape(canvas, powers_[i], laneX(powers_[i].lane));
+    }
+  });
 }
 
 void AlienRaidersGame::drawEnemy(TFT_eSPI& tft, const Enemy& enemy) const {
-  const int x = laneX(enemy.lane);
-  const int y = static_cast<int>(enemy.x);
-  if (enemy.boss) {
-    const int left = laneX(0) - 18;
-    const int right = laneX(2) + 18;
-    tft.fillRect(left + 8, y + 6, right - left - 16, 20, TFT_PURPLE);
-    tft.drawTriangle(laneX(1), y + 42, left, y, right, y, TFT_MAGENTA);
-    if (enemy.hp > 0) tft.drawRoundRect(left - 3, y - 4, right - left + 6, 51, 8, TFT_BLUE);
-    if (enemy.hp > enemy.maxHp / 3) tft.drawRoundRect(left - 7, y - 8, right - left + 14, 59, 10, TFT_CYAN);
-    if (enemy.hp > (enemy.maxHp * 2) / 3) tft.drawRoundRect(left - 11, y - 12, right - left + 22, 67, 12, TFT_WHITE);
-
-    tft.setTextSize(2);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(String(static_cast<int>(enemy.hp)), laneX(1) - 8, y + 16);
-    return;
-  }
-  tft.fillTriangle(x, y + 13, x - 11, y - 9, x + 11, y - 9, enemy.maxHp > 1 ? TFT_ORANGE : TFT_RED);
-  tft.drawTriangle(x, y + 13, x - 11, y - 9, x + 11, y - 9, TFT_WHITE);
-  const uint8_t shieldLayers = enemy.hp > 1 ? enemy.hp - 1 : 0;
-  if (shieldLayers >= 1) tft.drawCircle(x, y, 14, TFT_CYAN);
-  if (shieldLayers >= 2) tft.drawCircle(x, y, 18, TFT_BLUE);
-  if (shieldLayers >= 3) tft.drawCircle(x, y, 22, TFT_LIGHTGREY);
-  if (shieldLayers >= 4) {
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(String(static_cast<int>(enemy.hp)), x - 4, y - 4);
-  }
+  drawEnemyShape(tft, enemy, laneX(0), laneX(1), laneX(2), laneX(enemy.lane));
 }
 
 void AlienRaidersGame::drawPower(TFT_eSPI& tft, const Power& power) const {
-  const int x = laneX(power.lane);
-  const int y = static_cast<int>(power.x);
-  if (power.type == 5) {
-    tft.fillCircle(x, y, 8, TFT_DARKGREY);
-    tft.drawCircle(x, y, 8, TFT_WHITE);
-    tft.drawLine(x, y - 8, x + 6, y - 14, TFT_WHITE);
-    tft.fillCircle(x + 8, y - 14, 2, TFT_ORANGE);
-    return;
-  }
-  tft.drawCircle(x, y, 8, TFT_GREEN);
-  tft.drawLine(x - 6, y, x + 6, y, TFT_GREEN);
-  tft.drawLine(x, y - 6, x, y + 6, TFT_GREEN);
+  drawPowerShape(tft, power, laneX(power.lane));
 }
 
 void AlienRaidersGame::drawIntro(TFT_eSPI& tft) const {
-  drawPortraitHeader(tft, "Alien Raiders", TFT_CYAN);
-  const uint16_t t = introTimerMs_;
-  const int stationY = 184;
-  const int shipY = 164 - min<int>(92, t / 18);
-  const int shipX = laneX(1);
-  const int enemyY = 48;
-
-  tft.fillRoundRect(36, stationY, 63, 35, 4, TFT_DARKGREY);
-  tft.drawRoundRect(36, stationY, 63, 35, 4, TFT_LIGHTGREY);
-  tft.fillRect(46, stationY + 8, 13, 8, TFT_BLUE);
-  tft.fillRect(76, stationY + 8, 13, 8, TFT_BLUE);
-  tft.drawLine(55, stationY, shipX, shipY + 16, TFT_LIGHTGREY);
-  tft.drawLine(80, stationY, shipX, shipY + 16, TFT_LIGHTGREY);
-  tft.fillTriangle(shipX, shipY, shipX - 10, shipY + 22, shipX + 10, shipY + 22, TFT_CYAN);
-  tft.drawTriangle(shipX, shipY, shipX - 10, shipY + 22, shipX + 10, shipY + 22, TFT_WHITE);
-  if (t > 1000) {
-    tft.fillTriangle(laneX(0), enemyY + 22, laneX(0) - 11, enemyY, laneX(0) + 11, enemyY, TFT_RED);
-    tft.fillTriangle(laneX(2), enemyY + 42, laneX(2) - 11, enemyY + 20, laneX(2) + 11, enemyY + 20, TFT_ORANGE);
-    drawCentered(tft, "Defend", 121, 2, TFT_YELLOW);
-    drawCentered(tft, "Station", 143, 2, TFT_YELLOW);
-  } else {
-    drawCentered(tft, "Launch", 130, 2, TFT_LIGHTGREY);
-  }
+  drawIntroFrame(tft, introTimerMs_, laneX(0), laneX(1), laneX(2));
 }
 
 void AlienRaidersGame::drawStart(TFT_eSPI& tft) {

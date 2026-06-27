@@ -16,8 +16,7 @@ class CountdownApp : public App {
     bool startsRunningImmediately() const override;
 
   private:
-    void drawStatic(TFT_eSPI& tft, uint32_t remainingMs, bool running);
-    void drawRemaining(TFT_eSPI& tft, uint32_t remainingMs, uint16_t stateColor);
+    void drawCountdownFrame(TFT_eSPI& tft, uint32_t remainingMs, bool running, uint16_t stateColor);
     void drawFinishedAlert(TFT_eSPI& tft, bool flashOn);
 
     CountdownLogic logic_;

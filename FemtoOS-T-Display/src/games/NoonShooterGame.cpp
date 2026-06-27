@@ -5,10 +5,57 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
 Preferences shooterPrefs;
+
+template <typename Canvas>
+void drawRevolverShape(Canvas& canvas, bool playerShot, uint8_t frame) {
+  const int cx = 120;
+  const int cy = 70;
+  canvas.drawCircle(cx, cy, 36, TFT_LIGHTGREY);
+  canvas.drawCircle(cx, cy, 14, TFT_LIGHTGREY);
+  for (uint8_t i = 0; i < 6; i++) {
+    const float angle = static_cast<float>(i) * 1.047f;
+    canvas.fillCircle(cx + static_cast<int>(cosf(angle) * 25), cy + static_cast<int>(sinf(angle) * 25), 3, TFT_DARKGREY);
+  }
+  canvas.fillCircle(cx, cy, 6, TFT_BLACK);
+  if (frame >= 1) {
+    const int flashX = playerShot ? 188 : 52;
+    canvas.drawLine(cx, cy, flashX, cy, TFT_YELLOW);
+    canvas.drawLine(flashX, cy - 12, flashX + (playerShot ? 22 : -22), cy, TFT_ORANGE);
+    canvas.drawLine(flashX, cy + 12, flashX + (playerShot ? 22 : -22), cy, TFT_ORANGE);
+  }
+  if (frame >= 2) {
+    TDisplayUi::centered(canvas, "BANG", 105, 3, TFT_YELLOW);
+  }
+}
+
+template <typename Canvas>
+void drawGunslingerShape(Canvas& canvas, int x, int y, bool facingRight) {
+  canvas.drawCircle(x, y - 36, 6, TFT_WHITE);
+  canvas.drawLine(x, y - 29, x, y - 10, TFT_WHITE);
+  canvas.drawLine(x, y - 10, x - 10, y, TFT_WHITE);
+  canvas.drawLine(x, y - 10, x + 10, y, TFT_WHITE);
+  if (facingRight) {
+    canvas.drawLine(x, y - 25, x + 22, y - 25, TFT_WHITE);
+    canvas.drawFastHLine(x + 22, y - 26, 8, TFT_LIGHTGREY);
+  } else {
+    canvas.drawLine(x, y - 25, x - 22, y - 25, TFT_WHITE);
+    canvas.drawFastHLine(x - 30, y - 26, 8, TFT_LIGHTGREY);
+  }
+}
+
+template <typename Canvas>
+void drawFallenGunslingerShape(Canvas& canvas, int x, int y, bool facingRight) {
+  const int dir = facingRight ? 1 : -1;
+  canvas.drawCircle(x, y - 8, 6, TFT_WHITE);
+  canvas.drawLine(x + dir * 7, y - 8, x + dir * 34, y - 4, TFT_WHITE);
+  canvas.drawLine(x + dir * 18, y - 4, x + dir * 8, y, TFT_WHITE);
+  canvas.drawLine(x + dir * 24, y - 4, x + dir * 36, y, TFT_WHITE);
+}
 }
 
 NoonShooterGame::NoonShooterGame(uint32_t width, uint32_t height)
@@ -92,39 +139,41 @@ void NoonShooterGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, con
 }
 
 void NoonShooterGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Noon Shooter", TFT_ORANGE, (String("L") + String(level_)).c_str());
-  if (duelState_ == DuelState::PlayerShot || duelState_ == DuelState::EnemyShot) {
-    const uint8_t frame = min<uint8_t>(4, animMs_ / 160);
-    if (frame < 3) {
-      drawRevolver(tft, duelState_ == DuelState::PlayerShot, frame);
-      return;
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Noon Shooter", TFT_ORANGE, (String("L") + String(level_)).c_str());
+    if (duelState_ == DuelState::PlayerShot || duelState_ == DuelState::EnemyShot) {
+      const uint8_t frame = min<uint8_t>(4, animMs_ / 160);
+      if (frame < 3) {
+        drawRevolverShape(canvas, duelState_ == DuelState::PlayerShot, frame);
+        return;
+      }
     }
-  }
 
-  tft.fillCircle(202, 43, 12, TFT_YELLOW);
-  tft.drawLine(0, 105, width, 105, TFT_ORANGE);
-  if (duelState_ == DuelState::EnemyShot && animMs_ >= 480) {
-    drawFallenGunslinger(tft, 62, 104, true);
-  } else {
-    drawGunslinger(tft, 62, 101, true);
-  }
-  if (duelState_ == DuelState::PlayerShot && animMs_ >= 480) {
-    drawFallenGunslinger(tft, 178, 104, false);
-  } else {
-    drawGunslinger(tft, 178, 101, false);
-  }
+    canvas.fillCircle(202, 43, 12, TFT_YELLOW);
+    canvas.drawLine(0, 105, width, 105, TFT_ORANGE);
+    if (duelState_ == DuelState::EnemyShot && animMs_ >= 480) {
+      drawFallenGunslingerShape(canvas, 62, 104, true);
+    } else {
+      drawGunslingerShape(canvas, 62, 101, true);
+    }
+    if (duelState_ == DuelState::PlayerShot && animMs_ >= 480) {
+      drawFallenGunslingerShape(canvas, 178, 104, false);
+    } else {
+      drawGunslingerShape(canvas, 178, 101, false);
+    }
 
-  if (duelState_ == DuelState::Waiting) {
-    TDisplayUi::centered(tft, "WAIT", 42, 4, TFT_YELLOW);
-    TDisplayUi::footer(tft, "Do not draw early");
-  } else if (duelState_ == DuelState::Draw) {
-    TDisplayUi::centered(tft, "DRAW!", 42, 4, TFT_RED);
-    TDisplayUi::footer(tft, "B1 fire");
-  } else {
-    TDisplayUi::centered(tft, duelState_ == DuelState::PlayerShot ? "HIT" : "SHOT", 42, 4, duelState_ == DuelState::PlayerShot ? TFT_GREEN : TFT_RED);
-    TDisplayUi::footer(tft, (String("Enemy ") + String(enemyDelayMs()) + "ms").c_str());
-  }
+    if (duelState_ == DuelState::Waiting) {
+      TDisplayUi::centered(canvas, "WAIT", 42, 4, TFT_YELLOW);
+      TDisplayUi::footer(canvas, "Do not draw early");
+    } else if (duelState_ == DuelState::Draw) {
+      TDisplayUi::centered(canvas, "DRAW!", 42, 4, TFT_RED);
+      TDisplayUi::footer(canvas, "B1 fire");
+    } else {
+      TDisplayUi::centered(canvas, duelState_ == DuelState::PlayerShot ? "HIT" : "SHOT", 42, 4, duelState_ == DuelState::PlayerShot ? TFT_GREEN : TFT_RED);
+      TDisplayUi::footer(canvas, (String("Enemy ") + String(enemyDelayMs()) + "ms").c_str());
+    }
+  });
 }
 
 void NoonShooterGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);
@@ -215,44 +264,13 @@ uint16_t NoonShooterGame::enemyDelayMs() const {
 }
 
 void NoonShooterGame::drawRevolver(TFT_eSPI& tft, bool playerShot, uint8_t frame) {
-  const int cx = 120;
-  const int cy = 70;
-  tft.drawCircle(cx, cy, 36, TFT_LIGHTGREY);
-  tft.drawCircle(cx, cy, 14, TFT_LIGHTGREY);
-  for (uint8_t i = 0; i < 6; i++) {
-    const float angle = static_cast<float>(i) * 1.047f;
-    tft.fillCircle(cx + static_cast<int>(cosf(angle) * 25), cy + static_cast<int>(sinf(angle) * 25), 3, TFT_DARKGREY);
-  }
-  tft.fillCircle(cx, cy, 6, TFT_BLACK);
-  if (frame >= 1) {
-    const int flashX = playerShot ? 188 : 52;
-    tft.drawLine(cx, cy, flashX, cy, TFT_YELLOW);
-    tft.drawLine(flashX, cy - 12, flashX + (playerShot ? 22 : -22), cy, TFT_ORANGE);
-    tft.drawLine(flashX, cy + 12, flashX + (playerShot ? 22 : -22), cy, TFT_ORANGE);
-  }
-  if (frame >= 2) {
-    TDisplayUi::centered(tft, "BANG", 105, 3, TFT_YELLOW);
-  }
+  drawRevolverShape(tft, playerShot, frame);
 }
 
 void NoonShooterGame::drawGunslinger(TFT_eSPI& tft, int x, int y, bool facingRight) {
-  tft.drawCircle(x, y - 36, 6, TFT_WHITE);
-  tft.drawLine(x, y - 29, x, y - 10, TFT_WHITE);
-  tft.drawLine(x, y - 10, x - 10, y, TFT_WHITE);
-  tft.drawLine(x, y - 10, x + 10, y, TFT_WHITE);
-  if (facingRight) {
-    tft.drawLine(x, y - 25, x + 22, y - 25, TFT_WHITE);
-    tft.drawFastHLine(x + 22, y - 26, 8, TFT_LIGHTGREY);
-  } else {
-    tft.drawLine(x, y - 25, x - 22, y - 25, TFT_WHITE);
-    tft.drawFastHLine(x - 30, y - 26, 8, TFT_LIGHTGREY);
-  }
+  drawGunslingerShape(tft, x, y, facingRight);
 }
 
 void NoonShooterGame::drawFallenGunslinger(TFT_eSPI& tft, int x, int y, bool facingRight) {
-  const int dir = facingRight ? 1 : -1;
-  tft.drawCircle(x, y - 8, 6, TFT_WHITE);
-  tft.drawLine(x + dir * 7, y - 8, x + dir * 34, y - 4, TFT_WHITE);
-  tft.drawLine(x + dir * 18, y - 4, x + dir * 8, y, TFT_WHITE);
-  tft.drawLine(x + dir * 24, y - 4, x + dir * 36, y, TFT_WHITE);
+  drawFallenGunslingerShape(tft, x, y, facingRight);
 }

@@ -34,11 +34,11 @@ class EspContactsApp : public App {
     void handleSendStatus(bool success);
     void showFeedback(const char* text, uint16_t color, Mode returnMode);
     void markDirty();
-    void drawMain(TFT_eSPI& tft);
-    void drawListen(TFT_eSPI& tft);
-    void drawManage(TFT_eSPI& tft);
-    void drawConfirmDelete(TFT_eSPI& tft);
-    void drawFeedback(TFT_eSPI& tft);
+    template <typename Canvas> void drawMain(Canvas& tft);
+    template <typename Canvas> void drawListen(Canvas& tft);
+    template <typename Canvas> void drawManage(Canvas& tft);
+    template <typename Canvas> void drawConfirmDelete(Canvas& tft);
+    template <typename Canvas> void drawFeedback(Canvas& tft);
 
     static void onReceiveStatic(const esp_now_recv_info_t* info, const uint8_t* data, int len);
     static void onSentStatic(const esp_now_send_info_t* info, esp_now_send_status_t status);

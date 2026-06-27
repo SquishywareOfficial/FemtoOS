@@ -19,9 +19,9 @@ class KnifeThrowGame : public App {
     void saveBest();
     void throwKnife();
     void resolveThrow();
-    void drawBoard(TFT_eSPI& tft, int cx, int cy);
-    void drawPerson(TFT_eSPI& tft, int cx, int cy) const;
-    void drawReticle(TFT_eSPI& tft, int cx, int cy) const;
+    template <typename Canvas> void drawBoard(Canvas& tft, int cx, int cy);
+    template <typename Canvas> void drawPerson(Canvas& tft, int cx, int cy) const;
+    template <typename Canvas> void drawReticle(Canvas& tft, int cx, int cy) const;
     bool localPointHitsPerson(float lx, float ly) const;
     float rotateX(float lx, float ly) const;
     float rotateY(float lx, float ly) const;

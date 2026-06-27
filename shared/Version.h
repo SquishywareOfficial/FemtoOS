@@ -5,8 +5,8 @@
 namespace BuildInfo {
 constexpr uint8_t VERSION_MAJOR = 2;
 constexpr uint8_t VERSION_MINOR = 1;
-constexpr uint16_t BUILD_NUMBER = 82;
+constexpr uint16_t BUILD_NUMBER = 83;
 
 constexpr const char* VERSION_TEXT = "2.1";
-constexpr const char* BUILD_TEXT = "v2.1 b82";
+constexpr const char* BUILD_TEXT = "v2.1 b83";
 }
