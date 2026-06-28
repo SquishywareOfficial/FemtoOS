@@ -50,11 +50,11 @@ class CommunicatorApp : public App {
     const char* currentTitle() const;
     const char* recipientLabel(uint8_t index) const;
     void showFeedback(const char* text, uint16_t color);
-    void drawSend(TFT_eSPI& tft);
-    void drawRecipient(TFT_eSPI& tft);
-    void drawInbox(TFT_eSPI& tft);
-    void drawOpenMessage(TFT_eSPI& tft);
-    void drawFeedback(TFT_eSPI& tft);
+    template <typename Canvas> void drawSend(Canvas& tft);
+    template <typename Canvas> void drawRecipient(Canvas& tft);
+    template <typename Canvas> void drawInbox(Canvas& tft);
+    template <typename Canvas> void drawOpenMessage(Canvas& tft);
+    template <typename Canvas> void drawFeedback(Canvas& tft);
     void markDirty();
     void loadIdentityAndContacts();
 

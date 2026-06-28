@@ -1,4 +1,5 @@
 #include "DiceRollerApp.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include <TFT_eSPI.h>
 
@@ -28,11 +29,12 @@ void DiceRollerApp::drawRunning(TFT_eSPI& tft) {
     if (!dirty_ && renderedMode_ == logic_.getMode() && renderedDie_ == logic_.getSelectedDice()) {
       return;
     }
-    TDisplayUi::clear(tft);
-    TDisplayUi::header(tft, "Dice Roller", TFT_CYAN, "SELECT");
-    String die = "d" + String(logic_.getSelectedDice());
-    TDisplayUi::largeValue(tft, die, 52, TFT_CYAN);
-    TDisplayUi::footer(tft, "B1 next die / B1 hold roll");
+    TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+      TDisplayUi::header(canvas, "Dice Roller", TFT_CYAN, "SELECT");
+      String die = "d" + String(logic_.getSelectedDice());
+      TDisplayUi::largeValue(canvas, die, 52, TFT_CYAN);
+      TDisplayUi::footer(canvas, "B1 next die / B1 hold roll");
+    });
   } else {
     String die = "d" + String(logic_.getSelectedDice());
 
@@ -41,24 +43,23 @@ void DiceRollerApp::drawRunning(TFT_eSPI& tft) {
       if (!dirty_ && renderedRollFrame_ == frame) {
         return;
       }
-      if (dirty_ || renderedMode_ != logic_.getMode()) {
-        TDisplayUi::clear(tft);
-        TDisplayUi::header(tft, "Dice Roller", TFT_YELLOW, die.c_str());
-        TDisplayUi::footer(tft, "Rolling...");
-      }
-      tft.fillRect(0, 45, width, 55, TFT_BLACK);
-      String val = String(random(1, logic_.getSelectedDice() + 1));
-      TDisplayUi::largeValue(tft, val, 52, TFT_YELLOW);
+      TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+        TDisplayUi::header(canvas, "Dice Roller", TFT_YELLOW, die.c_str());
+        TDisplayUi::footer(canvas, "Rolling...");
+        String val = String(random(1, logic_.getSelectedDice() + 1));
+        TDisplayUi::largeValue(canvas, val, 52, TFT_YELLOW);
+      });
       renderedRollFrame_ = frame;
     } else {
       if (!dirty_ && renderedMode_ == logic_.getMode() && renderedResult_ == logic_.getResult()) {
         return;
       }
-      TDisplayUi::clear(tft);
-      TDisplayUi::header(tft, "Dice Roller", TFT_GREEN, die.c_str());
-      String val = String(logic_.getResult());
-      TDisplayUi::largeValue(tft, val, 48, TFT_GREEN);
-      TDisplayUi::footer(tft, "B1 roll again / B1 hold dice select");
+      TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+        TDisplayUi::header(canvas, "Dice Roller", TFT_GREEN, die.c_str());
+        String val = String(logic_.getResult());
+        TDisplayUi::largeValue(canvas, val, 48, TFT_GREEN);
+        TDisplayUi::footer(canvas, "B1 roll again / B1 hold dice select");
+      });
     }
   }
   renderedMode_ = logic_.getMode();

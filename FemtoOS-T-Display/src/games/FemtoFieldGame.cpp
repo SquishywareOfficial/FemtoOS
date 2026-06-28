@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -582,37 +583,38 @@ void FemtoFieldGame::saveEventRecord(uint8_t eventIndex) {
 }
 
 void FemtoFieldGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  switch (state_) {
-    case FieldState::EventIntro:
-      drawEventIntro(tft);
-      break;
-    case FieldState::CueSequence:
-      drawCueSequence(tft);
-      break;
-    case FieldState::HurdleCue:
-    case FieldState::HurdleHold:
-      drawHurdles(tft);
-      break;
-    case FieldState::DirectionSelect:
-      drawDirectionSelect(tft);
-      break;
-    case FieldState::AngleSelect:
-      drawAngleSelect(tft);
-      break;
-    case FieldState::JavelinHoldAngle:
-      drawJavelinHoldAngle(tft);
-      break;
-    case FieldState::HighJumpHold:
-      drawHighJumpHold(tft);
-      break;
-    case FieldState::ThrowAnim:
-      drawThrowAnim(tft);
-      break;
-    case FieldState::Result:
-      drawResult(tft);
-      break;
-  }
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    switch (state_) {
+      case FieldState::EventIntro:
+        drawEventIntro(canvas);
+        break;
+      case FieldState::CueSequence:
+        drawCueSequence(canvas);
+        break;
+      case FieldState::HurdleCue:
+      case FieldState::HurdleHold:
+        drawHurdles(canvas);
+        break;
+      case FieldState::DirectionSelect:
+        drawDirectionSelect(canvas);
+        break;
+      case FieldState::AngleSelect:
+        drawAngleSelect(canvas);
+        break;
+      case FieldState::JavelinHoldAngle:
+        drawJavelinHoldAngle(canvas);
+        break;
+      case FieldState::HighJumpHold:
+        drawHighJumpHold(canvas);
+        break;
+      case FieldState::ThrowAnim:
+        drawThrowAnim(canvas);
+        break;
+      case FieldState::Result:
+        drawResult(canvas);
+        break;
+    }
+  });
 }
 
 void FemtoFieldGame::drawStart(TFT_eSPI& tft) {
@@ -651,12 +653,14 @@ void FemtoFieldGame::drawEnd(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 retry  Hold menu");
 }
 
-void FemtoFieldGame::drawScoreHeader(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawScoreHeader(Canvas& tft) {
   const String stat = "R" + String(round_) + " A" + String(attemptsRemaining_) + " S" + String(totalScore_);
   TDisplayUi::header(tft, eventName(eventIndex_), TFT_ORANGE, stat.c_str());
 }
 
-void FemtoFieldGame::drawEventIntro(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawEventIntro(Canvas& tft) {
   drawScoreHeader(tft);
 
   TDisplayUi::centered(tft, eventName(eventIndex_), 42, 3, TFT_WHITE);
@@ -671,7 +675,8 @@ void FemtoFieldGame::drawEventIntro(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 start event");
 }
 
-void FemtoFieldGame::drawCueSequence(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawCueSequence(Canvas& tft) {
   drawScoreHeader(tft);
   const bool push = cueElapsedMs_ >= cueTargetMs_;
 
@@ -687,7 +692,8 @@ void FemtoFieldGame::drawCueSequence(TFT_eSPI& tft) {
   }
 }
 
-void FemtoFieldGame::drawHurdles(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawHurdles(Canvas& tft) {
   drawScoreHeader(tft);
   const bool airborne = hurdleRunnerY_ > 0.2f;
   const int hurdleX = static_cast<int>(hurdleX_);
@@ -706,7 +712,8 @@ void FemtoFieldGame::drawHurdles(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, hurdleFooter.c_str());
 }
 
-void FemtoFieldGame::drawDirectionSelect(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawDirectionSelect(Canvas& tft) {
   drawScoreHeader(tft);
   const int cx = 84;
   const int cy = 77;
@@ -723,7 +730,8 @@ void FemtoFieldGame::drawDirectionSelect(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 choose throw direction");
 }
 
-void FemtoFieldGame::drawAngleSelect(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawAngleSelect(Canvas& tft) {
   drawScoreHeader(tft);
   drawAngleFan(tft, 38, 108, selectorAngle_);
 
@@ -732,7 +740,8 @@ void FemtoFieldGame::drawAngleSelect(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "B1 select angle");
 }
 
-void FemtoFieldGame::drawJavelinHoldAngle(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawJavelinHoldAngle(Canvas& tft) {
   drawScoreHeader(tft);
   drawAngleFan(tft, 38, 108, selectorAngle_);
   tft.drawLine(24, 110, 116, 78, TFT_LIGHTGREY);
@@ -742,7 +751,8 @@ void FemtoFieldGame::drawJavelinHoldAngle(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "Hold for javelin angle");
 }
 
-void FemtoFieldGame::drawHighJumpHold(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawHighJumpHold(Canvas& tft) {
   drawScoreHeader(tft);
   const int ground = 112;
   tft.drawFastHLine(0, ground, width, TFT_DARKGREEN);
@@ -755,7 +765,8 @@ void FemtoFieldGame::drawHighJumpHold(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "Hold to set jump angle");
 }
 
-void FemtoFieldGame::drawThrowAnim(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawThrowAnim(Canvas& tft) {
   TDisplayUi::header(tft, "Hammer", TFT_ORANGE);
 
   const int originX = 42;
@@ -785,7 +796,8 @@ void FemtoFieldGame::drawThrowAnim(TFT_eSPI& tft) {
   TDisplayUi::footer(tft, "Throw distance");
 }
 
-void FemtoFieldGame::drawResult(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawResult(Canvas& tft) {
   TDisplayUi::header(tft, qualified_ ? "Qualified" : "No Qual", qualified_ ? TFT_GREEN : TFT_RED);
 
   String value;
@@ -814,7 +826,8 @@ void FemtoFieldGame::drawResult(TFT_eSPI& tft) {
   }
 }
 
-void FemtoFieldGame::drawStick(TFT_eSPI& tft, int x, int groundY, bool airborne) {
+template <typename Canvas>
+void FemtoFieldGame::drawStick(Canvas& tft, int x, int groundY, bool airborne) {
   const int y = groundY - 24;
   tft.drawCircle(x, y - 8, 5, TFT_WHITE);
   tft.drawLine(x, y - 3, x, y + 14, TFT_WHITE);
@@ -824,7 +837,8 @@ void FemtoFieldGame::drawStick(TFT_eSPI& tft, int x, int groundY, bool airborne)
   tft.drawLine(x, y + 14, x - 9, groundY - (airborne ? 12 : 0), TFT_WHITE);
 }
 
-void FemtoFieldGame::drawHurdle(TFT_eSPI& tft, int x, int groundY, bool fallen) {
+template <typename Canvas>
+void FemtoFieldGame::drawHurdle(Canvas& tft, int x, int groundY, bool fallen) {
   if (fallen) {
     tft.drawLine(x, groundY - 3, x + 28, groundY - 13, TFT_RED);
     tft.drawLine(x + 4, groundY, x + 11, groundY - 9, TFT_LIGHTGREY);
@@ -836,7 +850,8 @@ void FemtoFieldGame::drawHurdle(TFT_eSPI& tft, int x, int groundY, bool fallen) 
   tft.drawLine(x + 5, groundY - 28, x + 29, groundY - 28, TFT_YELLOW);
 }
 
-void FemtoFieldGame::drawAngleFan(TFT_eSPI& tft, int ox, int oy, float angleDeg) {
+template <typename Canvas>
+void FemtoFieldGame::drawAngleFan(Canvas& tft, int ox, int oy, float angleDeg) {
   tft.drawLine(ox, oy, ox + 138, oy, TFT_DARKGREY);
   tft.drawLine(ox, oy, ox + 98, oy - 72, TFT_DARKGREY);
   tft.drawArc(ox, oy, 58, 56, 315, 360, TFT_DARKGREY, TFT_BLACK);
@@ -847,7 +862,8 @@ void FemtoFieldGame::drawAngleFan(TFT_eSPI& tft, int ox, int oy, float angleDeg)
   tft.fillCircle(x2, y2, 4, TFT_YELLOW);
 }
 
-void FemtoFieldGame::drawTrackSplash(TFT_eSPI& tft) {
+template <typename Canvas>
+void FemtoFieldGame::drawTrackSplash(Canvas& tft) {
   TDisplayUi::header(tft, "Femto Field", TFT_ORANGE);
   TDisplayUi::centered(tft, "Track & Field", 36, 2, TFT_LIGHTGREY);
   tft.drawFastHLine(0, 110, width, TFT_DARKGREEN);

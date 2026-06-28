@@ -1,4 +1,5 @@
 #include "CounterApp.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include <TFT_eSPI.h>
 
@@ -45,14 +46,15 @@ void CounterApp::drawRunning(TFT_eSPI& tft) {
   if (!dirty_) {
     return;
   }
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Counter", TFT_GREEN);
-  TDisplayUi::pill(tft, 174, 36, "B2 -1", TFT_CYAN);
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Counter", TFT_GREEN);
+    TDisplayUi::pill(canvas, 174, 36, "B2 -1", TFT_CYAN);
 
-  String val = String(logic_.getCount());
-  TDisplayUi::largeValue(tft, val, 55, TFT_GREEN);
+    String val = String(logic_.getCount());
+    TDisplayUi::largeValue(canvas, val, 55, TFT_GREEN);
 
-  TDisplayUi::footer(tft, "B1 +1 / B1 hold reset / B2 -1");
+    TDisplayUi::footer(canvas, "B1 +1 / B1 hold reset / B2 -1");
+  });
   dirty_ = false;
 }
 

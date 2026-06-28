@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -107,34 +108,36 @@ void SimonGame::checkStep(bool longTone) {
 }
 
 void SimonGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Simon", TFT_MAGENTA, (String("L") + String(length_)).c_str());
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Simon", TFT_MAGENTA, (String("L") + String(length_)).c_str());
 
-  if (mode_ == Mode::Show) {
-    const bool longTone = sequence_[showIndex_];
-    const uint16_t color = longTone ? TFT_ORANGE : TFT_CYAN;
-    if ((timerMs_ % 650) < (longTone ? 420 : 180)) {
-      const char* cue = longTone ? "HOLD" : "TAP";
-      tft.fillRoundRect(42, 42, 156, 48, 8, color);
-      tft.setTextSize(4);
-      tft.setTextColor(TFT_BLACK, color);
-      tft.drawString(cue, (width - tft.textWidth(cue)) / 2, 52);
-    } else {
-      tft.drawRoundRect(42, 42, 156, 48, 8, TFT_DARKGREY);
+    if (mode_ == Mode::Show) {
+      const bool longTone = sequence_[showIndex_];
+      const uint16_t color = longTone ? TFT_ORANGE : TFT_CYAN;
+      if ((timerMs_ % 650) < (longTone ? 420 : 180)) {
+        const char* cue = longTone ? "HOLD" : "TAP";
+        canvas.fillRoundRect(42, 42, 156, 48, 8, color);
+        canvas.setTextSize(4);
+        canvas.setTextColor(TFT_BLACK, color);
+        canvas.drawString(cue, (width - canvas.textWidth(cue)) / 2, 52);
+      } else {
+        canvas.drawRoundRect(42, 42, 156, 48, 8, TFT_DARKGREY);
+      }
+      TDisplayUi::footer(canvas, "Watch the sequence");
+      return;
     }
-    TDisplayUi::footer(tft, "Watch the sequence");
-    return;
-  }
 
-  if (mode_ == Mode::Good) {
-    TDisplayUi::centered(tft, "GOOD", 52, 4, TFT_GREEN);
-    TDisplayUi::footer(tft, "Next round...");
-    return;
-  }
+    if (mode_ == Mode::Good) {
+      TDisplayUi::centered(canvas, "GOOD", 52, 4, TFT_GREEN);
+      TDisplayUi::footer(canvas, "Next round...");
+      return;
+    }
 
-  TDisplayUi::centered(tft, "REPEAT", 37, 3, TFT_WHITE);
-  TDisplayUi::row(tft, 75, "B1 tap = short", false, TFT_CYAN);
-  TDisplayUi::footer(tft, (String("Step ") + String(inputIndex_ + 1) + "/" + String(length_) + " / hold = long").c_str());
+    TDisplayUi::centered(canvas, "REPEAT", 37, 3, TFT_WHITE);
+    TDisplayUi::row(canvas, 75, "B1 tap = short", false, TFT_CYAN);
+    TDisplayUi::footer(canvas, (String("Step ") + String(inputIndex_ + 1) + "/" + String(length_) + " / hold = long").c_str());
+  });
 }
 
 void SimonGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);

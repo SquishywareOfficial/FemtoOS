@@ -3,6 +3,7 @@
 #include <Preferences.h>
 #include <TFT_eSPI.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -13,21 +14,7 @@ constexpr uint8_t MAIN_COUNT = 4;
 
 template <typename Drawer>
 void drawBuffered(TFT_eSPI& tft, uint32_t width, uint32_t height, Drawer drawer) {
-  static TFT_eSprite frame(&tft);
-  static bool frameTried = false;
-  static bool frameReady = false;
-  if (!frameTried) {
-    frameTried = true;
-    frame.setColorDepth(8);
-    frameReady = frame.createSprite(width, height) != nullptr;
-  }
-
-  if (frameReady) {
-    drawer(frame);
-    frame.pushSprite(0, 0);
-  } else {
-    drawer(tft);
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), drawer);
 }
 }
 

@@ -1,5 +1,12 @@
 # Release Notes
 
+## v2.1 b83
+
+- Stabilized T-Display rendering by moving the main app and game draw paths onto a single shared reusable full-screen framebuffer.
+- Fixed T-Display Femto Clock, Countdown, and Metronome live updates so recurring ticks/pulses render as complete buffered frames instead of live partial clears.
+- Reduced T-Display tearing/flicker across games, utilities, settings/about surfaces, miners, Reading, Communicator, Mouse Emulator, Pet Simulator, and WiFi Setup screens.
+- Removed stray Alien Raiders intro tether lines behind the launch ship.
+
 ## v2.1 b82
 
 - Moved the canonical project home to `SquishywareOfficial/FemtoOS`.

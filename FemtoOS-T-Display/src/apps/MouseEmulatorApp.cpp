@@ -6,6 +6,7 @@
 #include <NimBLEUUID.h>
 #include <HIDTypes.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include "../shared/logic/MouseIdentityLogic.h"
 
@@ -196,66 +197,10 @@ void MouseEmulatorApp::sendHumanizedStep() {
 }
 
 void MouseEmulatorApp::drawRunning(TFT_eSPI& tft) {
-  if (!uiInitialized_) {
-    const MouseIdentityProfile& profile = MouseIdentityLogic::profile(profileIndex_);
-    TDisplayUi::clear(tft);
-    TDisplayUi::header(tft, "Mouse Emulator", TFT_ORANGE);
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString("Advertises as:", 10, 36);
-    tft.setTextSize(2);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(profile.shortName, 10, 49);
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString("Host", 10, 78);
-    tft.drawString("Core", 10, 94);
-    tft.drawString("Next", 10, 110);
-    TDisplayUi::footer(tft, "B1 toggle movement");
-    lastKnownConnection_ = !bleMouse.isConnected();
-    lastKnownEnabled_ = !logic_.isEnabled();
-    lastConnectionPhase_ = -1;
-    lastCountdownValue_ = INT32_MIN;
-    lastMovementPixels_ = -1;
-    uiInitialized_ = true;
-  }
-  updateDynamicStats(tft);
-}
-
-void MouseEmulatorApp::updateDynamicStats(TFT_eSPI& tft) {
-  tft.setTextSize(1);
   bool currentConn = bleMouse.isConnected();
   bool enabled = logic_.isEnabled();
   const int8_t connectionPhase = currentConn ? static_cast<int8_t>((millis() / 5000) % 2) : 2;
 
-  // Connection Status
-  if (connectionPhase != lastConnectionPhase_) {
-    tft.fillRect(70, 76, 160, 14, TFT_BLACK);
-    if (currentConn) {
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.drawString(connectionPhase == 0 ? "PAIRED" : "READY", 70, 78);
-    } else {
-      tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-      tft.drawString("WAITING TO PAIR", 70, 78);
-    }
-    lastConnectionPhase_ = connectionPhase;
-    lastKnownConnection_ = currentConn;
-  }
-
-  // Jiggler Status
-  if (enabled != lastKnownEnabled_) {
-    tft.fillRect(70, 92, 160, 14, TFT_BLACK);
-    if (enabled) {
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.drawString("ACTIVE", 70, 94);
-    } else {
-      tft.setTextColor(TFT_RED, TFT_BLACK);
-      tft.drawString("PAUSED", 70, 94);
-    }
-    lastKnownEnabled_ = enabled;
-  }
-
-  // Countdown
   int32_t countdownValue = INT32_MIN;
   if (!currentConn || !enabled) {
     countdownValue = -1;
@@ -267,29 +212,70 @@ void MouseEmulatorApp::updateDynamicStats(TFT_eSPI& tft) {
     if (logic_.getTargetIntervalMs() > elapsed) remaining = (logic_.getTargetIntervalMs() - elapsed) / 1000;
     countdownValue = remaining;
   }
-  if (countdownValue != lastCountdownValue_) {
-    tft.fillRect(70, 108, 160, 10, TFT_BLACK);
-    if (countdownValue == -1) {
-      tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-      tft.drawString("STANDBY", 70, 110);
-    } else if (countdownValue == -2) {
-      tft.setTextColor(TFT_ORANGE, TFT_BLACK);
-      tft.drawString("SWEEPING", 70, 110);
-    } else {
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
-      tft.drawString(String(countdownValue) + " seconds", 70, 110);
-    }
-    lastCountdownValue_ = countdownValue;
+
+  if (uiInitialized_ &&
+      currentConn == lastKnownConnection_ &&
+      enabled == lastKnownEnabled_ &&
+      connectionPhase == lastConnectionPhase_ &&
+      countdownValue == lastCountdownValue_ &&
+      logic_.getLastMovementPixels() == lastMovementPixels_) {
+    return;
   }
 
-  // Last movement
-  if (logic_.getLastMovementPixels() != lastMovementPixels_) {
-    tft.fillRect(154, 92, 76, 14, TFT_BLACK);
-    tft.setTextColor(TFT_CYAN, TFT_BLACK);
-    if (logic_.getLastMovementPixels() > 0) tft.drawString(String(logic_.getLastMovementPixels()) + " px", 154, 94);
-    else tft.drawString("no run", 154, 94);
-    lastMovementPixels_ = logic_.getLastMovementPixels();
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    drawDashboard(canvas, currentConn, enabled, connectionPhase, countdownValue);
+  });
+
+  lastKnownConnection_ = currentConn;
+  lastKnownEnabled_ = enabled;
+  lastConnectionPhase_ = connectionPhase;
+  lastCountdownValue_ = countdownValue;
+  lastMovementPixels_ = logic_.getLastMovementPixels();
+  uiInitialized_ = true;
+}
+
+template <typename Canvas>
+void MouseEmulatorApp::drawDashboard(Canvas& tft, bool connected, bool enabled, int8_t connectionPhase, int32_t countdownValue) {
+  const MouseIdentityProfile& profile = MouseIdentityLogic::profile(profileIndex_);
+  TDisplayUi::header(tft, "Mouse Emulator", TFT_ORANGE);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  tft.drawString("Advertises as:", 10, 36);
+  tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString(profile.shortName, 10, 49);
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+  tft.drawString("Host", 10, 78);
+  tft.drawString("Core", 10, 94);
+  tft.drawString("Next", 10, 110);
+
+  if (connected) {
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.drawString(connectionPhase == 0 ? "PAIRED" : "READY", 70, 78);
+  } else {
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawString("WAITING TO PAIR", 70, 78);
   }
+
+  tft.setTextColor(enabled ? TFT_GREEN : TFT_RED, TFT_BLACK);
+  tft.drawString(enabled ? "ACTIVE" : "PAUSED", 70, 94);
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  if (logic_.getLastMovementPixels() > 0) tft.drawString(String(logic_.getLastMovementPixels()) + " px", 154, 94);
+  else tft.drawString("no run", 154, 94);
+
+  if (countdownValue == -1) {
+    tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+    tft.drawString("STANDBY", 70, 110);
+  } else if (countdownValue == -2) {
+    tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+    tft.drawString("SWEEPING", 70, 110);
+  } else {
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString(String(countdownValue) + " seconds", 70, 110);
+  }
+
+  TDisplayUi::footer(tft, "B1 toggle movement");
 }
 
 void MouseEmulatorApp::drawStart(TFT_eSPI& tft) {

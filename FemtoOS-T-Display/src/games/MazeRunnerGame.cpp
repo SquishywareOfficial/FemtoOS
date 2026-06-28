@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -70,81 +71,82 @@ void MazeRunnerGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, cons
 }
 
 void MazeRunnerGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  String stat = "L" + String(level_) + " T" + String(timeLeftMs_ / 1000);
-  if (collectorMode_) {
-    stat += " K";
-    stat += String(pickupCount_ - __builtin_popcount(collectedMask_));
-  }
-  TDisplayUi::header(tft, collectorMode_ ? "Maze Collector" : "Maze Runner", collectorMode_ ? TFT_YELLOW : TFT_CYAN, stat.c_str());
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    String stat = "L" + String(level_) + " T" + String(timeLeftMs_ / 1000);
+    if (collectorMode_) {
+      stat += " K";
+      stat += String(pickupCount_ - __builtin_popcount(collectedMask_));
+    }
+    TDisplayUi::header(canvas, collectorMode_ ? "Maze Collector" : "Maze Runner", collectorMode_ ? TFT_YELLOW : TFT_CYAN, stat.c_str());
 
-  for (uint8_t r = 0; r < ROWS; r++) {
-    for (uint8_t c = 0; c < COLS; c++) {
-      const uint8_t cell = r * COLS + c;
-      const int x = GRID_X + c * CELL_W;
-      const int y = GRID_Y + r * CELL_H;
-      if (walls_[cell] & WALL_UP) {
-        tft.drawLine(x, y, x + CELL_W, y, TFT_LIGHTGREY);
-        tft.drawLine(x, y + 1, x + CELL_W, y + 1, TFT_DARKGREY);
-      }
-      if (walls_[cell] & WALL_LEFT) {
-        tft.drawLine(x, y, x, y + CELL_H, TFT_LIGHTGREY);
-        tft.drawLine(x + 1, y, x + 1, y + CELL_H, TFT_DARKGREY);
-      }
-      if (walls_[cell] & WALL_RIGHT) {
-        tft.drawLine(x + CELL_W, y, x + CELL_W, y + CELL_H, TFT_LIGHTGREY);
-        tft.drawLine(x + CELL_W - 1, y, x + CELL_W - 1, y + CELL_H, TFT_DARKGREY);
-      }
-      if (walls_[cell] & WALL_DOWN) {
-        tft.drawLine(x, y + CELL_H, x + CELL_W, y + CELL_H, TFT_LIGHTGREY);
-        tft.drawLine(x, y + CELL_H - 1, x + CELL_W, y + CELL_H - 1, TFT_DARKGREY);
+    for (uint8_t r = 0; r < ROWS; r++) {
+      for (uint8_t c = 0; c < COLS; c++) {
+        const uint8_t cell = r * COLS + c;
+        const int x = GRID_X + c * CELL_W;
+        const int y = GRID_Y + r * CELL_H;
+        if (walls_[cell] & WALL_UP) {
+          canvas.drawLine(x, y, x + CELL_W, y, TFT_LIGHTGREY);
+          canvas.drawLine(x, y + 1, x + CELL_W, y + 1, TFT_DARKGREY);
+        }
+        if (walls_[cell] & WALL_LEFT) {
+          canvas.drawLine(x, y, x, y + CELL_H, TFT_LIGHTGREY);
+          canvas.drawLine(x + 1, y, x + 1, y + CELL_H, TFT_DARKGREY);
+        }
+        if (walls_[cell] & WALL_RIGHT) {
+          canvas.drawLine(x + CELL_W, y, x + CELL_W, y + CELL_H, TFT_LIGHTGREY);
+          canvas.drawLine(x + CELL_W - 1, y, x + CELL_W - 1, y + CELL_H, TFT_DARKGREY);
+        }
+        if (walls_[cell] & WALL_DOWN) {
+          canvas.drawLine(x, y + CELL_H, x + CELL_W, y + CELL_H, TFT_LIGHTGREY);
+          canvas.drawLine(x, y + CELL_H - 1, x + CELL_W, y + CELL_H - 1, TFT_DARKGREY);
+        }
       }
     }
-  }
 
-  const uint8_t runnerCol = runnerCell_ % COLS;
-  const uint8_t runnerRow = runnerCell_ / COLS;
-  const int runnerX = GRID_X + runnerCol * CELL_W + CELL_W / 2;
-  const int runnerY = GRID_Y + runnerRow * CELL_H + CELL_H / 2;
-  if (collectorMode_) {
-    for (uint8_t i = 0; i < pickupCount_; i++) {
-      if ((collectedMask_ & (1 << i)) != 0) {
-        continue;
+    const uint8_t runnerCol = runnerCell_ % COLS;
+    const uint8_t runnerRow = runnerCell_ / COLS;
+    const int runnerX = GRID_X + runnerCol * CELL_W + CELL_W / 2;
+    const int runnerY = GRID_Y + runnerRow * CELL_H + CELL_H / 2;
+    if (collectorMode_) {
+      for (uint8_t i = 0; i < pickupCount_; i++) {
+        if ((collectedMask_ & (1 << i)) != 0) {
+          continue;
+        }
+        const uint8_t pickupCol = pickupCells_[i] % COLS;
+        const uint8_t pickupRow = pickupCells_[i] / COLS;
+        const int pickupX = GRID_X + pickupCol * CELL_W + CELL_W / 2;
+        const int pickupY = GRID_Y + pickupRow * CELL_H + CELL_H / 2;
+        canvas.fillCircle(pickupX, pickupY, 4, TFT_YELLOW);
+        canvas.drawCircle(pickupX, pickupY, 5, TFT_ORANGE);
       }
-      const uint8_t pickupCol = pickupCells_[i] % COLS;
-      const uint8_t pickupRow = pickupCells_[i] / COLS;
-      const int pickupX = GRID_X + pickupCol * CELL_W + CELL_W / 2;
-      const int pickupY = GRID_Y + pickupRow * CELL_H + CELL_H / 2;
-      tft.fillCircle(pickupX, pickupY, 4, TFT_YELLOW);
-      tft.drawCircle(pickupX, pickupY, 5, TFT_ORANGE);
     }
-  }
-  tft.fillCircle(runnerX, runnerY, 5, TFT_GREEN);
-  tft.drawPixel(runnerX + 2, runnerY - 1, TFT_BLACK);
-  if (runnerState_ == RunnerState::Choosing && optionCount_ > 0) {
-    const Direction option = options_[selectedOption_];
-    int x2 = runnerX;
-    int y2 = runnerY;
-    if (option == Up) {
-      y2 -= 11;
-    } else if (option == Right) {
-      x2 += 13;
-    } else if (option == Down) {
-      y2 += 11;
-    } else {
-      x2 -= 13;
+    canvas.fillCircle(runnerX, runnerY, 5, TFT_GREEN);
+    canvas.drawPixel(runnerX + 2, runnerY - 1, TFT_BLACK);
+    if (runnerState_ == RunnerState::Choosing && optionCount_ > 0) {
+      const Direction option = options_[selectedOption_];
+      int x2 = runnerX;
+      int y2 = runnerY;
+      if (option == Up) {
+        y2 -= 11;
+      } else if (option == Right) {
+        x2 += 13;
+      } else if (option == Down) {
+        y2 += 11;
+      } else {
+        x2 -= 13;
+      }
+      canvas.drawLine(runnerX, runnerY, x2, y2, TFT_CYAN);
+      canvas.fillCircle(x2, y2, 2, TFT_CYAN);
     }
-    tft.drawLine(runnerX, runnerY, x2, y2, TFT_CYAN);
-    tft.fillCircle(x2, y2, 2, TFT_CYAN);
-  }
-  const int exitX = GRID_X + (COLS - 1) * CELL_W + CELL_W / 2 - 5;
-  const int exitY = GRID_Y + (ROWS - 1) * CELL_H + CELL_H / 2 - 5;
-  tft.drawRoundRect(exitX, exitY, 10, 10, 2, exitUnlocked() ? TFT_GREEN : TFT_RED);
-  if (collectorMode_ && !exitUnlocked()) {
-    tft.drawLine(exitX + 2, exitY + 2, exitX + 8, exitY + 8, TFT_RED);
-    tft.drawLine(exitX + 8, exitY + 2, exitX + 2, exitY + 8, TFT_RED);
-  }
-  TDisplayUi::footer(tft, runnerState_ == RunnerState::Choosing ? "B1 choose  Hold run" : "Running...");
+    const int exitX = GRID_X + (COLS - 1) * CELL_W + CELL_W / 2 - 5;
+    const int exitY = GRID_Y + (ROWS - 1) * CELL_H + CELL_H / 2 - 5;
+    canvas.drawRoundRect(exitX, exitY, 10, 10, 2, exitUnlocked() ? TFT_GREEN : TFT_RED);
+    if (collectorMode_ && !exitUnlocked()) {
+      canvas.drawLine(exitX + 2, exitY + 2, exitX + 8, exitY + 8, TFT_RED);
+      canvas.drawLine(exitX + 8, exitY + 2, exitX + 2, exitY + 8, TFT_RED);
+    }
+    TDisplayUi::footer(canvas, runnerState_ == RunnerState::Choosing ? "B1 choose  Hold run" : "Running...");
+  });
 }
 
 void MazeRunnerGame::drawStart(TFT_eSPI& tft) {

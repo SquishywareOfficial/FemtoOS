@@ -3,28 +3,13 @@
 #include <math.h>
 #include <TFT_eSPI.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
 template <typename Drawer>
 void drawBuffered(TFT_eSPI& tft, uint32_t width, uint32_t height, Drawer drawer) {
-  static TFT_eSprite frame(&tft);
-  static bool attempted = false;
-  static bool ready = false;
-  if (!ready && !attempted) {
-    attempted = true;
-    frame.setColorDepth(8);
-    ready = frame.createSprite(width, height) != nullptr;
-  }
-
-  if (ready) {
-    frame.fillSprite(TFT_BLACK);
-    drawer(frame);
-    frame.pushSprite(0, 0);
-  } else {
-    tft.fillScreen(TFT_BLACK);
-    drawer(tft);
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), drawer);
 }
 
 uint16_t rainbow(uint8_t n) {

@@ -24,11 +24,11 @@ class PetSimulatorApp : public App {
     void updateIdle(uint32_t deltaMs);
     void updatePlayScene(uint32_t deltaMs);
     void startPlayScene();
-    void drawPet(TFT_eSPI& tft, int x, int y);
-    void drawPoop(TFT_eSPI& tft, int x, int y);
-    void drawPoops(TFT_eSPI& tft);
-    void drawBar(TFT_eSPI& tft, int x, int y, const char* label, uint8_t value);
-    void drawLowHealthWarning(TFT_eSPI& tft);
+    template <typename Canvas> void drawPet(Canvas& tft, int x, int y);
+    template <typename Canvas> void drawPoop(Canvas& tft, int x, int y);
+    template <typename Canvas> void drawPoops(Canvas& tft);
+    template <typename Canvas> void drawBar(Canvas& tft, int x, int y, const char* label, uint8_t value);
+    template <typename Canvas> void drawLowHealthWarning(Canvas& tft);
 
     Mode mode_ = Mode::ChoosePet;
     uint8_t petType_ = 0;

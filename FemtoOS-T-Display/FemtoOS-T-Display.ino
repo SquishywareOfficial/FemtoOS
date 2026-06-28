@@ -45,13 +45,12 @@
 #include "src/games/TowerStackerGame.h"
 
 #include "TDisplayUi.h"
+#include "TDisplayFramebuffer.h"
 #include "src/shared/Version.h"
 
 static NimBLEUUID nimbleUuidLinkAnchor(static_cast<uint16_t>(0x1812));
 
 TFT_eSPI tft = TFT_eSPI();
-TFT_eSprite* menuFrameSprite = nullptr;
-bool menuFrameReady = false;
 
 constexpr uint8_t BUTTON_1 = 0;
 constexpr uint8_t BUTTON_2 = 35;
@@ -397,12 +396,6 @@ void openMenu(MenuView view) {
 }
 
 void launchApp(App& app, uint32_t nowMs, bool fromAutoLaunch = false, bool autoRun = false) {
-  if (menuFrameSprite != nullptr) {
-    menuFrameSprite->deleteSprite();
-    delete menuFrameSprite;
-    menuFrameSprite = nullptr;
-    menuFrameReady = false;
-  }
   invalidateMenuRender();
   activeReturnMenu = currentMenu;
   activeApp = &app;
@@ -849,23 +842,8 @@ void drawMenu() {
     return;
   }
 
-  if (menuFrameSprite == nullptr) {
-    menuFrameSprite = new TFT_eSprite(&tft);
-    if (menuFrameSprite != nullptr) {
-      menuFrameSprite->setColorDepth(8);
-    }
-  }
-  if (menuFrameSprite != nullptr && !menuFrameReady) {
-    menuFrameReady = menuFrameSprite->createSprite(SCREEN_WIDTH, SCREEN_HEIGHT) != nullptr;
-  }
-
-  if (menuFrameReady) {
-    drawMenuFrame(*menuFrameSprite, count, textSize);
-    menuFrameSprite->pushSprite(0, 0);
-  } else {
-    tft.fillScreen(TFT_BLACK);
-    drawMenuFrame(tft, count, textSize);
-  }
+  TDisplayFramebuffer::draw(tft, SCREEN_WIDTH, SCREEN_HEIGHT,
+                            [&](auto& canvas) { drawMenuFrame(canvas, count, textSize); });
   menuRendered = true;
   renderedMenuView = currentMenu;
   renderedMenuIndex = menuIndex;

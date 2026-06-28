@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -46,25 +47,27 @@ void TowerStackerGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, co
 }
 
 void TowerStackerGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Tower Stacker", TFT_CYAN, (String("L") + String(level_) + " S" + String(score_)).c_str());
-  tft.drawFastHLine(0, height - 1, width, TFT_DARKGREY);
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Tower Stacker", TFT_CYAN, (String("L") + String(level_) + " S" + String(score_)).c_str());
+    canvas.drawFastHLine(0, height - 1, width, TFT_DARKGREY);
 
-  const uint8_t visibleLayers = (height - HUD_H - 3) / BLOCK_H;
-  uint8_t firstVisibleLayer = 0;
-  if (layerCount_ >= visibleLayers) {
-    firstVisibleLayer = layerCount_ - visibleLayers + 1;
-  }
+    const uint8_t visibleLayers = (height - HUD_H - 3) / BLOCK_H;
+    uint8_t firstVisibleLayer = 0;
+    if (layerCount_ >= visibleLayers) {
+      firstVisibleLayer = layerCount_ - visibleLayers + 1;
+    }
 
-  for (uint8_t i = firstVisibleLayer; i < layerCount_; i++) {
-    tft.fillRect(layers_[i].x, layerY(i, firstVisibleLayer), layers_[i].w, BLOCK_H - 1,
-                 i % 2 == 0 ? TFT_CYAN : TFT_BLUE);
-  }
+    for (uint8_t i = firstVisibleLayer; i < layerCount_; i++) {
+      canvas.fillRect(layers_[i].x, layerY(i, firstVisibleLayer), layers_[i].w, BLOCK_H - 1,
+                      i % 2 == 0 ? TFT_CYAN : TFT_BLUE);
+    }
 
-  if (layerCount_ < MAX_LAYERS) {
-    tft.fillRect(static_cast<int>(movingX_), layerY(layerCount_, firstVisibleLayer), movingW_, BLOCK_H - 1, TFT_YELLOW);
-    tft.drawRect(static_cast<int>(movingX_), layerY(layerCount_, firstVisibleLayer), movingW_, BLOCK_H - 1, TFT_WHITE);
-  }
+    if (layerCount_ < MAX_LAYERS) {
+      canvas.fillRect(static_cast<int>(movingX_), layerY(layerCount_, firstVisibleLayer), movingW_, BLOCK_H - 1, TFT_YELLOW);
+      canvas.drawRect(static_cast<int>(movingX_), layerY(layerCount_, firstVisibleLayer), movingW_, BLOCK_H - 1, TFT_WHITE);
+    }
+  });
 }
 
 void TowerStackerGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);

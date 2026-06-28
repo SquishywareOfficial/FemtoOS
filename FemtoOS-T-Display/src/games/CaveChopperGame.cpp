@@ -4,10 +4,24 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
 Preferences cavePrefs;
+
+template <typename Canvas>
+void drawChopperShape(Canvas& canvas, int x, int y, bool rotor) {
+  if (rotor) canvas.drawFastHLine(x + 7, y - 7, 28, TFT_CYAN);
+  else canvas.drawFastHLine(x + 18, y - 9, 8, TFT_CYAN);
+  canvas.drawFastVLine(x + 22, y - 6, 5, TFT_CYAN);
+  canvas.drawLine(x + 1, y - 3, x + 9, y + 1, TFT_YELLOW);
+  canvas.drawLine(x + 1, y + 8, x + 9, y + 4, TFT_YELLOW);
+  canvas.drawFastVLine(x, y - 5, 11, TFT_YELLOW);
+  canvas.fillRoundRect(x + 9, y, 14, 7, 2, TFT_YELLOW);
+  canvas.fillRoundRect(x + 24, y - 2, 15, 9, 2, TFT_ORANGE);
+  canvas.drawFastHLine(x + 10, y + 9, 23, TFT_LIGHTGREY);
+}
 }
 
 CaveChopperGame::CaveChopperGame(uint32_t width, uint32_t height)
@@ -87,30 +101,24 @@ void CaveChopperGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, con
 }
 
 void CaveChopperGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Cave Chopper", TFT_GREEN, (String(score_) + "s").c_str());
-  tft.drawRect(0, TDisplayUi::HEADER_H, width, height - TDisplayUi::HEADER_H, TFT_DARKGREY);
-  for (uint8_t i = 0; i < SEGMENTS; i++) {
-    if (!segments_[i].active) continue;
-    const int x = static_cast<int>(segments_[i].x);
-    const int topH = segments_[i].gapTop;
-    const int bottomY = segments_[i].gapTop + GAP_H;
-    if (topH > TDisplayUi::HEADER_H) tft.fillRect(x, TDisplayUi::HEADER_H, SEG_W, topH - TDisplayUi::HEADER_H, TFT_DARKGREEN);
-    if (bottomY < static_cast<int>(height)) tft.fillRect(x, bottomY, SEG_W, height - bottomY - 1, TFT_GREEN);
-  }
-  drawChopper(tft, 34, static_cast<int>(y_), rotorOn_);
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Cave Chopper", TFT_GREEN, (String(score_) + "s").c_str());
+    canvas.drawRect(0, TDisplayUi::HEADER_H, width, height - TDisplayUi::HEADER_H, TFT_DARKGREY);
+    for (uint8_t i = 0; i < SEGMENTS; i++) {
+      if (!segments_[i].active) continue;
+      const int x = static_cast<int>(segments_[i].x);
+      const int topH = segments_[i].gapTop;
+      const int bottomY = segments_[i].gapTop + GAP_H;
+      if (topH > TDisplayUi::HEADER_H) canvas.fillRect(x, TDisplayUi::HEADER_H, SEG_W, topH - TDisplayUi::HEADER_H, TFT_DARKGREEN);
+      if (bottomY < static_cast<int>(height)) canvas.fillRect(x, bottomY, SEG_W, height - bottomY - 1, TFT_GREEN);
+    }
+    drawChopperShape(canvas, 34, static_cast<int>(y_), rotorOn_);
+  });
 }
 
 void CaveChopperGame::drawChopper(TFT_eSPI& tft, int x, int y, bool rotor) const {
-  if (rotor) tft.drawFastHLine(x + 7, y - 7, 28, TFT_CYAN);
-  else tft.drawFastHLine(x + 18, y - 9, 8, TFT_CYAN);
-  tft.drawFastVLine(x + 22, y - 6, 5, TFT_CYAN);
-  tft.drawLine(x + 1, y - 3, x + 9, y + 1, TFT_YELLOW);
-  tft.drawLine(x + 1, y + 8, x + 9, y + 4, TFT_YELLOW);
-  tft.drawFastVLine(x, y - 5, 11, TFT_YELLOW);
-  tft.fillRoundRect(x + 9, y, 14, 7, 2, TFT_YELLOW);
-  tft.fillRoundRect(x + 24, y - 2, 15, 9, 2, TFT_ORANGE);
-  tft.drawFastHLine(x + 10, y + 9, 23, TFT_LIGHTGREY);
+  drawChopperShape(tft, x, y, rotor);
 }
 
 void CaveChopperGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);

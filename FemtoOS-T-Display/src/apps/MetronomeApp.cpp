@@ -1,4 +1,5 @@
 #include "MetronomeApp.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include <TFT_eSPI.h>
 
@@ -36,55 +37,47 @@ void MetronomeApp::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const 
   }
 }
 
-void MetronomeApp::drawStatic(TFT_eSPI& tft, bool running) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Metronome", running ? TFT_GREEN : TFT_YELLOW, running ? "RUN" : "SET");
-  if (running) TDisplayUi::footer(tft, "B1 stop / B1 hold stop");
-  else TDisplayUi::footer(tft, "B1 +5 / B2 -5 / B1 hold start");
-  uiInitialized_ = true;
-  lastRunning_ = running;
-  lastPulse_ = false;
-  lastBpm_ = 0;
-}
+void MetronomeApp::drawMetronomeFrame(TFT_eSPI& tft, bool running, bool pulse) {
+  const uint16_t panelBg = pulse ? TFT_DARKGREEN : TFT_BLACK;
+  const uint16_t valueColor = pulse ? TFT_WHITE : (running ? TFT_GREEN : TFT_YELLOW);
+  const uint16_t labelColor = pulse ? TFT_WHITE : TFT_LIGHTGREY;
 
-void MetronomeApp::drawBpmArea(TFT_eSPI& tft, bool pulse) {
-  const bool running = logic_.isRunning();
-  const uint16_t bg = pulse ? TFT_GREEN : TFT_BLACK;
-  const uint16_t valueColor = pulse ? TFT_BLACK : (running ? TFT_GREEN : TFT_YELLOW);
-  const uint16_t labelColor = pulse ? TFT_BLACK : TFT_LIGHTGREY;
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Metronome", running ? TFT_GREEN : TFT_YELLOW, running ? "RUN" : "SET");
+    if (running) TDisplayUi::footer(canvas, "B1 stop / B1 hold stop");
+    else TDisplayUi::footer(canvas, "B1 +5 / B2 -5 / B1 hold start");
 
-  tft.fillRect(0, 29, width, 88, bg);
-  if (!pulse) {
-    tft.drawRoundRect(8, 35, width - 16, 72, 8, running ? TFT_DARKGREEN : TFT_DARKGREY);
-  }
+    canvas.fillRoundRect(8, 35, width - 16, 72, 8, panelBg);
+    canvas.drawRoundRect(8, 35, width - 16, 72, 8, pulse ? TFT_GREEN : (running ? TFT_DARKGREEN : TFT_DARKGREY));
+    if (pulse) {
+      canvas.fillRect(0, 31, 10, 84, TFT_GREEN);
+      canvas.fillRect(width - 10, 31, 10, 84, TFT_GREEN);
+      canvas.drawFastHLine(16, 41, width - 32, TFT_GREEN);
+      canvas.drawFastHLine(16, 101, width - 32, TFT_GREEN);
+    }
 
-  String bpm = String(logic_.getBpm());
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextSize(6);
-  if (tft.textWidth(bpm) > width - 70) {
-    tft.setTextSize(5);
-  }
-  tft.setTextColor(valueColor, bg);
-  tft.drawString(bpm, (width - tft.textWidth(bpm)) / 2, 45);
+    String bpm = String(logic_.getBpm());
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextSize(6);
+    if (canvas.textWidth(bpm) > width - 70) {
+      canvas.setTextSize(5);
+    }
+    canvas.setTextColor(valueColor, panelBg);
+    canvas.drawString(bpm, (width - canvas.textWidth(bpm)) / 2, 45);
 
-  tft.setTextSize(2);
-  tft.setTextColor(labelColor, bg);
-  tft.drawString("BPM", (width - tft.textWidth("BPM")) / 2, 95);
-
-  if (pulse) {
-    tft.fillRect(0, 29, 8, 88, TFT_WHITE);
-    tft.fillRect(width - 8, 29, 8, 88, TFT_WHITE);
-  }
+    canvas.setTextSize(2);
+    canvas.setTextColor(labelColor, panelBg);
+    canvas.drawString("BPM", (width - canvas.textWidth("BPM")) / 2, 95);
+  });
 }
 
 void MetronomeApp::drawRunning(TFT_eSPI& tft) {
   const bool running = logic_.isRunning();
   const bool pulse = running && millis() < pulseUntilMs_;
-  if (!uiInitialized_ || running != lastRunning_) {
-    drawStatic(tft, running);
-  }
-  if (pulse != lastPulse_ || logic_.getBpm() != lastBpm_) {
-    drawBpmArea(tft, pulse);
+  if (!uiInitialized_ || running != lastRunning_ || pulse != lastPulse_ || logic_.getBpm() != lastBpm_) {
+    drawMetronomeFrame(tft, running, pulse);
+    uiInitialized_ = true;
+    lastRunning_ = running;
     lastPulse_ = pulse;
     lastBpm_ = logic_.getBpm();
   }

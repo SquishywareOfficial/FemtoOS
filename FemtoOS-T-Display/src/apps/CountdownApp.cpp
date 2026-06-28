@@ -1,4 +1,5 @@
 #include "CountdownApp.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include <TFT_eSPI.h>
 
@@ -33,30 +34,22 @@ void CountdownApp::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const 
   }
 }
 
-void CountdownApp::drawStatic(TFT_eSPI& tft, uint32_t remaining, bool running) {
-  const uint16_t stateColor = remaining == 0 ? TFT_RED : (running ? TFT_GREEN : TFT_YELLOW);
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Countdown", stateColor, running ? "RUN" : "SET");
-  if (running) TDisplayUi::footer(tft, "B1 stop / B1 hold reset");
-  else TDisplayUi::footer(tft, "B1 +10s / B2 -10s / B1 hold start");
-  uiInitialized_ = true;
-  lastRunning_ = running;
-  alarmActive_ = false;
-  lastDurationMs_ = logic_.getDurationMs();
-  lastRenderedSecond_ = UINT32_MAX;
-}
+void CountdownApp::drawCountdownFrame(TFT_eSPI& tft, uint32_t remaining, bool running, uint16_t stateColor) {
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Countdown", stateColor, running ? "RUN" : "SET");
+    if (running) TDisplayUi::footer(canvas, "B1 stop / B1 hold reset");
+    else TDisplayUi::footer(canvas, "B1 +10s / B2 -10s / B1 hold start");
 
-void CountdownApp::drawRemaining(TFT_eSPI& tft, uint32_t remaining, uint16_t stateColor) {
-  uint32_t s = (remaining / 1000) % 60;
-  uint32_t m = (remaining / 60000) % 60;
-  uint32_t h = (remaining / 3600000);
+    uint32_t s = (remaining / 1000) % 60;
+    uint32_t m = (remaining / 60000) % 60;
+    uint32_t h = (remaining / 3600000);
 
-  char buf[32];
-  snprintf(buf, sizeof(buf), "%02u:%02u:%02u", (unsigned)h, (unsigned)m, (unsigned)s);
-
-  tft.fillRect(0, 45, width, 66, TFT_BLACK);
-  TDisplayUi::largeValue(tft, buf, 53, stateColor);
-  TDisplayUi::bar(tft, 22, 94, 196, 8, static_cast<float>(remaining) / static_cast<float>(logic_.getDurationMs()), stateColor);
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u", (unsigned)h, (unsigned)m, (unsigned)s);
+    TDisplayUi::largeValue(canvas, buf, 53, stateColor);
+    const float ratio = logic_.getDurationMs() == 0 ? 0.0f : static_cast<float>(remaining) / static_cast<float>(logic_.getDurationMs());
+    TDisplayUi::bar(canvas, 22, 94, 196, 8, ratio, stateColor);
+  });
 }
 
 void CountdownApp::drawFinishedAlert(TFT_eSPI& tft, bool flashOn) {
@@ -64,26 +57,28 @@ void CountdownApp::drawFinishedAlert(TFT_eSPI& tft, bool flashOn) {
   const uint16_t fg = flashOn ? TFT_WHITE : TFT_RED;
   const uint16_t sub = flashOn ? TFT_WHITE : TFT_LIGHTGREY;
 
-  tft.fillScreen(bg);
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(sub, bg);
-  tft.setTextSize(2);
-  tft.drawString("Countdown", 10, 8);
-  tft.drawFastHLine(0, 29, width, flashOn ? TFT_WHITE : TFT_DARKGREY);
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    canvas.fillRect(0, 0, width, height, bg);
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextColor(sub, bg);
+    canvas.setTextSize(2);
+    canvas.drawString("Countdown", 10, 8);
+    canvas.drawFastHLine(0, 29, width, flashOn ? TFT_WHITE : TFT_DARKGREY);
 
-  tft.setTextColor(fg, bg);
-  tft.setTextSize(4);
-  String label = "TIME UP";
-  tft.drawString(label, (width - tft.textWidth(label)) / 2, 45);
+    canvas.setTextColor(fg, bg);
+    canvas.setTextSize(4);
+    String label = "TIME UP";
+    canvas.drawString(label, (width - canvas.textWidth(label)) / 2, 45);
 
-  tft.setTextSize(2);
-  String zero = "00:00:00";
-  tft.drawString(zero, (width - tft.textWidth(zero)) / 2, 91);
+    canvas.setTextSize(2);
+    String zero = "00:00:00";
+    canvas.drawString(zero, (width - canvas.textWidth(zero)) / 2, 91);
 
-  tft.setTextSize(1);
-  String hint = "B1 +10s / B1 hold start";
-  tft.setTextColor(sub, bg);
-  tft.drawString(hint, (width - tft.textWidth(hint)) / 2, 121);
+    canvas.setTextSize(1);
+    String hint = "B1 +10s / B1 hold start";
+    canvas.setTextColor(sub, bg);
+    canvas.drawString(hint, (width - canvas.textWidth(hint)) / 2, 121);
+  });
 }
 
 void CountdownApp::drawRunning(TFT_eSPI& tft) {
@@ -107,13 +102,14 @@ void CountdownApp::drawRunning(TFT_eSPI& tft) {
     lastRenderedSecond_ = UINT32_MAX;
   }
 
-  if (!uiInitialized_ || running != lastRunning_ || logic_.getDurationMs() != lastDurationMs_) {
-    drawStatic(tft, remaining, running);
-  }
-
   const uint32_t secondTick = (remaining + 999) / 1000;
-  if (secondTick != lastRenderedSecond_) {
-    drawRemaining(tft, remaining, stateColor);
+  if (!uiInitialized_ || running != lastRunning_ || logic_.getDurationMs() != lastDurationMs_ ||
+      secondTick != lastRenderedSecond_) {
+    drawCountdownFrame(tft, remaining, running, stateColor);
+    uiInitialized_ = true;
+    lastRunning_ = running;
+    alarmActive_ = false;
+    lastDurationMs_ = logic_.getDurationMs();
     lastRenderedSecond_ = secondTick;
   }
 }

@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -123,52 +124,53 @@ void BlackjackGame::drawRunning(TFT_eSPI& tft) {
   renderedBankroll_ = bankroll_;
   renderedBet_ = bet_;
 
-  TDisplayUi::clear(tft);
-  const String bank = "$" + String(bankroll_) + " B" + String(bet_);
-  TDisplayUi::header(tft, "Blackjack", TFT_GREEN, bank.c_str());
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    const String bank = "$" + String(bankroll_) + " B" + String(bet_);
+    TDisplayUi::header(canvas, "Blackjack", TFT_GREEN, bank.c_str());
 
-  if (handState_ == HandState::Shuffling) {
-    tft.fillRoundRect(79, 44, 34, 46, 4, TFT_NAVY);
-    tft.drawRoundRect(79, 44, 34, 46, 4, TFT_WHITE);
-    tft.fillRoundRect(127, 44, 34, 46, 4, TFT_DARKGREEN);
-    tft.drawRoundRect(127, 44, 34, 46, 4, TFT_WHITE);
-    TDisplayUi::centered(tft, "Shuffling", 96, 2, TFT_YELLOW);
-    TDisplayUi::footer(tft, "Two-deck shoe");
-    return;
-  }
+    if (handState_ == HandState::Shuffling) {
+      canvas.fillRoundRect(79, 44, 34, 46, 4, TFT_NAVY);
+      canvas.drawRoundRect(79, 44, 34, 46, 4, TFT_WHITE);
+      canvas.fillRoundRect(127, 44, 34, 46, 4, TFT_DARKGREEN);
+      canvas.drawRoundRect(127, 44, 34, 46, 4, TFT_WHITE);
+      TDisplayUi::centered(canvas, "Shuffling", 96, 2, TFT_YELLOW);
+      TDisplayUi::footer(canvas, "Two-deck shoe");
+      return;
+    }
 
-  if (handState_ == HandState::Betting) {
-    tft.setTextSize(2);
-    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString("Bet", 35, 48);
-    TDisplayUi::largeValue(tft, "$" + String(bet_), 63, TFT_YELLOW);
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString(String(deckRemaining_) + " cards left", 86, 105);
-    TDisplayUi::footer(tft, "B1 tap deal  Hold bet");
-    return;
-  }
+    if (handState_ == HandState::Betting) {
+      canvas.setTextSize(2);
+      canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+      canvas.drawString("Bet", 35, 48);
+      TDisplayUi::largeValue(canvas, "$" + String(bet_), 63, TFT_YELLOW);
+      canvas.setTextSize(1);
+      canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+      canvas.drawString(String(deckRemaining_) + " cards left", 86, 105);
+      TDisplayUi::footer(canvas, "B1 tap deal  Hold bet");
+      return;
+    }
 
-  const bool hideDealer = handState_ == HandState::Dealing || handState_ == HandState::PlayerTurn;
-  tft.setTextSize(2);
-  tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  tft.drawString("Dealer", 10, 36);
-  drawCards(tft, 82, 35, dealerCards_, dealerCount_, hideDealer);
-  tft.setTextColor(TFT_GREEN, TFT_BLACK);
-  tft.drawString("Player", 10, 75);
-  drawCards(tft, 82, 74, playerCards_, playerCount_, false);
+    const bool hideDealer = handState_ == HandState::Dealing || handState_ == HandState::PlayerTurn;
+    canvas.setTextSize(2);
+    canvas.setTextColor(TFT_CYAN, TFT_BLACK);
+    canvas.drawString("Dealer", 10, 36);
+    drawCards(canvas, 82, 35, dealerCards_, dealerCount_, hideDealer);
+    canvas.setTextColor(TFT_GREEN, TFT_BLACK);
+    canvas.drawString("Player", 10, 75);
+    drawCards(canvas, 82, 74, playerCards_, playerCount_, false);
 
-  if (handState_ == HandState::Dealing) {
-    TDisplayUi::footer(tft, "Dealing...");
-  } else if (handState_ == HandState::PlayerTurn) {
-    TDisplayUi::footer(tft, "B1 hit  Hold stay");
-  } else if (handState_ == HandState::DealerReveal) {
-    TDisplayUi::footer(tft, "Dealer reveals");
-  } else if (handState_ == HandState::DealerTurn) {
-    TDisplayUi::footer(tft, handValue(dealerCards_, dealerCount_) < 17 ? "Dealer hits" : "Dealer stays");
-  } else {
-    TDisplayUi::footer(tft, resultText());
-  }
+    if (handState_ == HandState::Dealing) {
+      TDisplayUi::footer(canvas, "Dealing...");
+    } else if (handState_ == HandState::PlayerTurn) {
+      TDisplayUi::footer(canvas, "B1 hit  Hold stay");
+    } else if (handState_ == HandState::DealerReveal) {
+      TDisplayUi::footer(canvas, "Dealer reveals");
+    } else if (handState_ == HandState::DealerTurn) {
+      TDisplayUi::footer(canvas, handValue(dealerCards_, dealerCount_) < 17 ? "Dealer hits" : "Dealer stays");
+    } else {
+      TDisplayUi::footer(canvas, resultText());
+    }
+  });
 }
 
 void BlackjackGame::drawStart(TFT_eSPI& tft) {
@@ -480,7 +482,8 @@ const char* BlackjackGame::resultText() const {
   }
 }
 
-void BlackjackGame::drawCards(TFT_eSPI& tft, int x, int y, const uint8_t* cards, uint8_t count, bool hideFirst) {
+template <typename Canvas>
+void BlackjackGame::drawCards(Canvas& tft, int x, int y, const uint8_t* cards, uint8_t count, bool hideFirst) {
   const uint8_t visibleCards = min<uint8_t>(count, 6);
   for (uint8_t i = 0; i < visibleCards; i++) {
     const int cardX = x + i * 24;

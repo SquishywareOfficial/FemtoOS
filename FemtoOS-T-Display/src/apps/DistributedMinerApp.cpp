@@ -2,6 +2,7 @@
 
 #include <TFT_eSPI.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include "../shared/logic/MinerClusterLogic.h"
 
@@ -10,21 +11,7 @@ constexpr const char* HOSTNAME = "FemtoDeck-Cluster";
 
 template <typename Drawer>
 void drawBuffered(TFT_eSPI& tft, uint32_t width, uint32_t height, Drawer drawer) {
-  static TFT_eSprite frame(&tft);
-  static bool frameReady = false;
-  if (!frameReady) {
-    frame.setColorDepth(8);
-    frameReady = frame.createSprite(width, height) != nullptr;
-  }
-
-  if (frameReady) {
-    frame.fillSprite(TFT_BLACK);
-    drawer(frame);
-    frame.pushSprite(0, 0);
-  } else {
-    tft.fillScreen(TFT_BLACK);
-    drawer(tft);
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), drawer);
 }
 
 template <typename Canvas>
@@ -513,7 +500,6 @@ void DistributedMinerApp::drawFrame(Canvas& canvas) {
 void DistributedMinerApp::drawRunning(TFT_eSPI& tft) {
   tft.setRotation(1);
   if (forceScreenClear_) {
-    tft.fillScreen(TFT_BLACK);
     forceScreenClear_ = false;
   }
   drawBuffered(tft, width, height, [this](auto& canvas) { drawFrame(canvas); });

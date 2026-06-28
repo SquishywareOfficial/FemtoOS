@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -71,14 +72,16 @@ void NuclearReactorGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, 
 }
 
 void NuclearReactorGame::drawRunning(TFT_eSPI& tft) {
-  const uint16_t tempColor = temp_ >= 86.0f ? TFT_RED : (temp_ <= 30.0f ? TFT_CYAN : TFT_YELLOW);
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Reactor", tempColor, rodsMs_ > 0 ? "RODS" : "HOT");
-  TDisplayUi::labelValue(tft, 38, "Power", String(static_cast<unsigned long>(currentPowerKw_)) + " kW", TFT_GREEN);
-  TDisplayUi::labelValue(tft, 62, "Total", String(static_cast<unsigned long>(scoreWh_ / 1000)) + " kWh", TFT_CYAN);
-  TDisplayUi::labelValue(tft, 86, "Temp", String(static_cast<int>(temp_)) + " C", tempColor);
-  TDisplayUi::bar(tft, 132, 90, 88, 13, temp_ / 100.0f, tempColor);
-  TDisplayUi::footer(tft, "B1 inserts cooling rods");
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), [&](auto& canvas) {
+    const uint16_t tempColor = temp_ >= 86.0f ? TFT_RED : (temp_ <= 30.0f ? TFT_CYAN : TFT_YELLOW);
+    TDisplayUi::clear(canvas);
+    TDisplayUi::header(canvas, "Reactor", tempColor, rodsMs_ > 0 ? "RODS" : "HOT");
+    TDisplayUi::labelValue(canvas, 38, "Power", String(static_cast<unsigned long>(currentPowerKw_)) + " kW", TFT_GREEN);
+    TDisplayUi::labelValue(canvas, 62, "Total", String(static_cast<unsigned long>(scoreWh_ / 1000)) + " kWh", TFT_CYAN);
+    TDisplayUi::labelValue(canvas, 86, "Temp", String(static_cast<int>(temp_)) + " C", tempColor);
+    TDisplayUi::bar(canvas, 132, 90, 88, 13, temp_ / 100.0f, tempColor);
+    TDisplayUi::footer(canvas, "B1 inserts cooling rods");
+  });
 }
 
 void NuclearReactorGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);

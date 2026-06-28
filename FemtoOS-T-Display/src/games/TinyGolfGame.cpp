@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -170,23 +171,24 @@ void TinyGolfGame::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const 
 }
 
 void TinyGolfGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  const String stat = "H" + String(holeIndex_ + 1) + " S" + String(totalStrokes_);
-  TDisplayUi::header(tft, "Tiny Golf", TFT_GREEN, stat.c_str());
-  drawCourse(tft);
-  if (playState_ == PlayState::Aim) {
-    drawAim(tft);
-    TDisplayUi::footer(tft, "B1 set angle");
-  } else if (playState_ == PlayState::Power) {
-    drawAim(tft);
-    drawPower(tft);
-    TDisplayUi::footer(tft, "B1 set power");
-  } else if (playState_ == PlayState::Holed) {
-    TDisplayUi::centered(tft, "Nice", 68, 3, TFT_YELLOW);
-    TDisplayUi::footer(tft, "Holed");
-  } else {
-    TDisplayUi::footer(tft, "Rolling");
-  }
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    const String stat = "H" + String(holeIndex_ + 1) + " S" + String(totalStrokes_);
+    TDisplayUi::header(canvas, "Tiny Golf", TFT_GREEN, stat.c_str());
+    drawCourse(canvas);
+    if (playState_ == PlayState::Aim) {
+      drawAim(canvas);
+      TDisplayUi::footer(canvas, "B1 set angle");
+    } else if (playState_ == PlayState::Power) {
+      drawAim(canvas);
+      drawPower(canvas);
+      TDisplayUi::footer(canvas, "B1 set power");
+    } else if (playState_ == PlayState::Holed) {
+      TDisplayUi::centered(canvas, "Nice", 68, 3, TFT_YELLOW);
+      TDisplayUi::footer(canvas, "Holed");
+    } else {
+      TDisplayUi::footer(canvas, "Rolling");
+    }
+  });
 }
 
 void TinyGolfGame::drawStart(TFT_eSPI& tft) {
@@ -332,7 +334,8 @@ void TinyGolfGame::updateBall(uint32_t deltaMs) {
   }
 }
 
-void TinyGolfGame::drawCourse(TFT_eSPI& tft) {
+template <typename Canvas>
+void TinyGolfGame::drawCourse(Canvas& tft) {
   const CourseHole& hole = HOLES[holeIndex_];
   tft.drawRoundRect(COURSE_X, COURSE_Y, COURSE_W, COURSE_H, 4, TFT_DARKGREEN);
   tft.drawFastHLine(COURSE_X + 1, sy(HUD_H), COURSE_W - 2, TFT_DARKGREEN);
@@ -357,7 +360,8 @@ void TinyGolfGame::drawCourse(TFT_eSPI& tft) {
   tft.drawCircle(sx(ballX_), sy(ballY_), 5, TFT_DARKGREY);
 }
 
-void TinyGolfGame::drawHud(TFT_eSPI& tft) {
+template <typename Canvas>
+void TinyGolfGame::drawHud(Canvas& tft) {
 
   tft.setCursor(2, 6);
   tft.print("H");
@@ -366,7 +370,8 @@ void TinyGolfGame::drawHud(TFT_eSPI& tft) {
   tft.print(totalStrokes_);
 }
 
-void TinyGolfGame::drawAim(TFT_eSPI& tft) {
+template <typename Canvas>
+void TinyGolfGame::drawAim(Canvas& tft) {
   const int aimLen = 8;
   const float x2 = ballX_ + cosf(aimAngle_) * aimLen;
   const float y2 = ballY_ + sinf(aimAngle_) * aimLen;
@@ -374,7 +379,8 @@ void TinyGolfGame::drawAim(TFT_eSPI& tft) {
   tft.fillCircle(sx(x2), sy(y2), 2, TFT_CYAN);
 }
 
-void TinyGolfGame::drawPower(TFT_eSPI& tft) {
+template <typename Canvas>
+void TinyGolfGame::drawPower(Canvas& tft) {
   TDisplayUi::bar(tft, 154, 8, 72, 10, power_, power_ > 0.78f ? TFT_RED : TFT_YELLOW);
 }
 

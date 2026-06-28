@@ -1,4 +1,5 @@
 #include "StopwatchApp.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include <TFT_eSPI.h>
 
@@ -25,9 +26,10 @@ void StopwatchApp::updateRunning(uint32_t deltaMs, const ButtonInput& b1, const 
 }
 
 void StopwatchApp::drawStatic(TFT_eSPI& tft, bool running) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Stopwatch", running ? TFT_GREEN : TFT_YELLOW, running ? "RUN" : "STOP");
-  TDisplayUi::footer(tft, "B1 start/stop / B1 hold or B2 reset");
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Stopwatch", running ? TFT_GREEN : TFT_YELLOW, running ? "RUN" : "STOP");
+    TDisplayUi::footer(canvas, "B1 start/stop / B1 hold or B2 reset");
+  });
   uiInitialized_ = true;
   lastRunning_ = running;
   lastRenderedTick_ = UINT32_MAX;
@@ -42,8 +44,11 @@ void StopwatchApp::drawElapsed(TFT_eSPI& tft, uint32_t elapsed, bool running) {
   char buf[32];
   snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%03u", (unsigned)h, (unsigned)m, (unsigned)s, (unsigned)ms);
 
-  tft.fillRect(0, 45, width, 48, TFT_BLACK);
-  TDisplayUi::largeValue(tft, buf, 53, running ? TFT_GREEN : TFT_YELLOW);
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Stopwatch", running ? TFT_GREEN : TFT_YELLOW, running ? "RUN" : "STOP");
+    TDisplayUi::footer(canvas, "B1 start/stop / B1 hold or B2 reset");
+    TDisplayUi::largeValue(canvas, buf, 53, running ? TFT_GREEN : TFT_YELLOW);
+  });
 }
 
 void StopwatchApp::drawRunning(TFT_eSPI& tft) {

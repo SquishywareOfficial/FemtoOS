@@ -57,7 +57,8 @@ class PipeManiaGame : public App {
     Direction opposite(Direction dir) const;
     Direction nextDirection(PipeType pipe, Direction enteredFrom) const;
     bool stepCell(uint8_t cell, Direction dir, uint8_t& nextCell) const;
-    void drawPipe(TFT_eSPI& tft, int x, int y, PipeType pipe, bool filled);
+    template <typename Canvas>
+    void drawPipe(Canvas& tft, int x, int y, PipeType pipe, bool filled);
 
     PipeType grid_[CELL_COUNT] = {};
     bool filled_[CELL_COUNT] = {};

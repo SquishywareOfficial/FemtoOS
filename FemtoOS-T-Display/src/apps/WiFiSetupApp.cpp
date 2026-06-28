@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -30,21 +31,7 @@ constexpr uint8_t ROW_COUNT = 4;
 
 template <typename Drawer>
 void drawBuffered(TFT_eSPI& tft, uint32_t width, uint32_t height, Drawer drawer) {
-  static TFT_eSprite frame(&tft);
-  static bool frameTried = false;
-  static bool frameReady = false;
-  if (!frameTried) {
-    frameTried = true;
-    frame.setColorDepth(8);
-    frameReady = frame.createSprite(width, height) != nullptr;
-  }
-
-  if (frameReady) {
-    drawer(frame);
-    frame.pushSprite(0, 0);
-  } else {
-    drawer(tft);
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), drawer);
 }
 }
 
@@ -627,29 +614,31 @@ void WiFiSetupApp::drawMain(TFT_eSPI& tft) {
 }
 
 void WiFiSetupApp::drawStartingPortal(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "WiFi Setup", TFT_CYAN, "Starting");
-  TDisplayUi::centered(tft, "Launching", 45, 2, TFT_YELLOW);
-  TDisplayUi::centered(tft, "WiFi AP", 69, 2, TFT_CYAN);
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString("Scanning networks first...", 44, 102);
-  TDisplayUi::footer(tft, "B2 cancel");
+  drawBuffered(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "WiFi Setup", TFT_CYAN, "Starting");
+    TDisplayUi::centered(canvas, "Launching", 45, 2, TFT_YELLOW);
+    TDisplayUi::centered(canvas, "WiFi AP", 69, 2, TFT_CYAN);
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextSize(1);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString("Scanning networks first...", 44, 102);
+    TDisplayUi::footer(canvas, "B2 cancel");
+  });
 }
 
 void WiFiSetupApp::drawConfigure(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Configure", portalState_ == PortalState::Error ? TFT_RED : TFT_CYAN, portalLabel());
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextSize(1);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString("Connect to setup WiFi:", 14, 38);
-  TDisplayUi::centered(tft, AP_SSID, 54, 2, TFT_CYAN);
-  tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-  tft.drawString("Pass: femtodeck", 14, 84);
-  tft.drawString("Open: 192.168.4.1", 14, 98);
-  TDisplayUi::footer(tft, "B1 rescan  B2 back");
+  drawBuffered(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Configure", portalState_ == PortalState::Error ? TFT_RED : TFT_CYAN, portalLabel());
+    canvas.setTextDatum(TL_DATUM);
+    canvas.setTextSize(1);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString("Connect to setup WiFi:", 14, 38);
+    TDisplayUi::centered(canvas, AP_SSID, 54, 2, TFT_CYAN);
+    canvas.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    canvas.drawString("Pass: femtodeck", 14, 84);
+    canvas.drawString("Open: 192.168.4.1", 14, 98);
+    TDisplayUi::footer(canvas, "B1 rescan  B2 back");
+  });
 }
 
 void WiFiSetupApp::drawProfileSelect(TFT_eSPI& tft, const char* title, uint16_t color, const char* action) {
@@ -678,40 +667,43 @@ void WiFiSetupApp::drawProfileSelect(TFT_eSPI& tft, const char* title, uint16_t 
 }
 
 void WiFiSetupApp::drawTesting(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
   const bool ok = testState_ == TestState::Connected;
   const bool fail = testState_ == TestState::Failed;
   const uint16_t color = ok ? TFT_GREEN : fail ? TFT_RED : TFT_YELLOW;
-  TDisplayUi::header(tft, "WiFi Test", color, testLabel());
-  if (testProfileIndex_ != NO_PROFILE && testProfileIndex_ < WiFiLogic::MAX_PROFILES) {
-    TDisplayUi::centered(tft, logic_.getSsid(testProfileIndex_), 42, 2, TFT_WHITE);
-  }
-  if (ok) {
-    TDisplayUi::centered(tft, WiFi.localIP().toString(), 79, 2, TFT_GREEN);
-  } else if (fail) {
-    TDisplayUi::centered(tft, "No connection", 79, 2, TFT_RED);
-  } else {
-    TDisplayUi::centered(tft, "Connecting...", 79, 2, TFT_YELLOW);
-  }
-  TDisplayUi::footer(tft, testState_ == TestState::Connecting ? "B2 cancel" : "B1 list  B2 back");
+  drawBuffered(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "WiFi Test", color, testLabel());
+    if (testProfileIndex_ != NO_PROFILE && testProfileIndex_ < WiFiLogic::MAX_PROFILES) {
+      TDisplayUi::centered(canvas, logic_.getSsid(testProfileIndex_), 42, 2, TFT_WHITE);
+    }
+    if (ok) {
+      TDisplayUi::centered(canvas, WiFi.localIP().toString(), 79, 2, TFT_GREEN);
+    } else if (fail) {
+      TDisplayUi::centered(canvas, "No connection", 79, 2, TFT_RED);
+    } else {
+      TDisplayUi::centered(canvas, "Connecting...", 79, 2, TFT_YELLOW);
+    }
+    TDisplayUi::footer(canvas, testState_ == TestState::Connecting ? "B2 cancel" : "B1 list  B2 back");
+  });
 }
 
 void WiFiSetupApp::drawConfirmDelete(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, deleteAll_ ? "DELETE ALL?" : "DELETE WiFi?", TFT_RED);
-  if (deleteAll_) {
-    TDisplayUi::centered(tft, "All saved WiFi", 50, 2, TFT_RED);
-  } else if (deleteProfileIndex_ < WiFiLogic::MAX_PROFILES) {
-    TDisplayUi::centered(tft, logic_.getSsid(deleteProfileIndex_), 50, 2, TFT_RED);
-  }
-  TDisplayUi::footer(tft, "B1 hold erase  B1/B2 tap no");
+  drawBuffered(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, deleteAll_ ? "DELETE ALL?" : "DELETE WiFi?", TFT_RED);
+    if (deleteAll_) {
+      TDisplayUi::centered(canvas, "All saved WiFi", 50, 2, TFT_RED);
+    } else if (deleteProfileIndex_ < WiFiLogic::MAX_PROFILES) {
+      TDisplayUi::centered(canvas, logic_.getSsid(deleteProfileIndex_), 50, 2, TFT_RED);
+    }
+    TDisplayUi::footer(canvas, "B1 hold erase  B1/B2 tap no");
+  });
 }
 
 void WiFiSetupApp::drawMessage(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "WiFi Setup", TFT_CYAN);
-  TDisplayUi::largeValue(tft, message_, 52, TFT_YELLOW);
-  TDisplayUi::footer(tft, "B1/B2 continue");
+  drawBuffered(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "WiFi Setup", TFT_CYAN);
+    TDisplayUi::largeValue(canvas, message_, 52, TFT_YELLOW);
+    TDisplayUi::footer(canvas, "B1/B2 continue");
+  });
 }
 
 void WiFiSetupApp::drawStart(TFT_eSPI& tft) {

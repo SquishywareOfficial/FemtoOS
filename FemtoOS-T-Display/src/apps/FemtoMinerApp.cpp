@@ -8,6 +8,7 @@
 #include <WiFiClientSecure.h>
 #include <esp_wifi.h>
 
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 #include "../shared/logic/WiFiLogic.h"
 
@@ -26,21 +27,7 @@ const IPAddress AP_SUBNET(255, 255, 255, 0);
 
 template <typename Drawer>
 void drawBuffered(TFT_eSPI& tft, uint32_t width, uint32_t height, Drawer drawer) {
-  static TFT_eSprite frame(&tft);
-  static bool frameReady = false;
-  if (!frameReady) {
-    frame.setColorDepth(8);
-    frameReady = frame.createSprite(width, height) != nullptr;
-  }
-
-  if (frameReady) {
-    frame.fillSprite(TFT_BLACK);
-    drawer(frame);
-    frame.pushSprite(0, 0);
-  } else {
-    tft.fillScreen(TFT_BLACK);
-    drawer(tft);
-  }
+  TDisplayFramebuffer::draw(tft, static_cast<int16_t>(width), static_cast<int16_t>(height), drawer);
 }
 
 void drawFit(TFT_eSprite& canvas, const String& text, int x, int y, int maxWidth, uint8_t size, uint16_t color) {
@@ -861,7 +848,6 @@ void FemtoMinerApp::drawFrame(Canvas& canvas) {
 void FemtoMinerApp::drawRunning(TFT_eSPI& tft) {
   tft.setRotation(1);
   if (forceScreenClear_) {
-    tft.fillScreen(TFT_BLACK);
     forceScreenClear_ = false;
   }
   drawBuffered(tft, width, height, [this](auto& canvas) { drawFrame(canvas); });

@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 
 #include "../../PlayerProfile.h"
+#include "../../TDisplayFramebuffer.h"
 #include "../../TDisplayUi.h"
 
 namespace {
@@ -126,7 +127,8 @@ float KnifeThrowGame::rotateY(float lx, float ly) const {
   return lx * sinf(boardAngle_) + ly * cosf(boardAngle_);
 }
 
-void KnifeThrowGame::drawPerson(TFT_eSPI& tft, int cx, int cy) const {
+template <typename Canvas>
+void KnifeThrowGame::drawPerson(Canvas& tft, int cx, int cy) const {
   const int hx = cx + static_cast<int>(rotateX(0.0f, -9.0f) * BOARD_SCALE);
   const int hy = cy + static_cast<int>(rotateY(0.0f, -9.0f) * BOARD_SCALE);
   const int sx = cx + static_cast<int>(rotateX(0.0f, -6.0f) * BOARD_SCALE);
@@ -149,7 +151,8 @@ void KnifeThrowGame::drawPerson(TFT_eSPI& tft, int cx, int cy) const {
   tft.drawLine(px, py, rl, rly, TFT_WHITE);
 }
 
-void KnifeThrowGame::drawReticle(TFT_eSPI& tft, int cx, int cy) const {
+template <typename Canvas>
+void KnifeThrowGame::drawReticle(Canvas& tft, int cx, int cy) const {
   const int x = cx + static_cast<int>(cosf(reticleAngle_) * reticleRadius_ * BOARD_SCALE);
   const int y = cy + static_cast<int>(sinf(reticleAngle_) * reticleRadius_ * BOARD_SCALE);
   tft.drawCircle(x, y, 5, TFT_YELLOW);
@@ -157,7 +160,8 @@ void KnifeThrowGame::drawReticle(TFT_eSPI& tft, int cx, int cy) const {
   tft.drawLine(x, y - 8, x, y + 8, TFT_YELLOW);
 }
 
-void KnifeThrowGame::drawBoard(TFT_eSPI& tft, int cx, int cy) {
+template <typename Canvas>
+void KnifeThrowGame::drawBoard(Canvas& tft, int cx, int cy) {
   tft.fillCircle(cx, cy, static_cast<int>(15 * BOARD_SCALE), TFT_MAROON);
   tft.drawCircle(cx, cy, static_cast<int>(15 * BOARD_SCALE), TFT_ORANGE);
   tft.drawCircle(cx, cy, static_cast<int>(10 * BOARD_SCALE), TFT_YELLOW);
@@ -186,10 +190,11 @@ void KnifeThrowGame::drawBoard(TFT_eSPI& tft, int cx, int cy) {
 }
 
 void KnifeThrowGame::drawRunning(TFT_eSPI& tft) {
-  TDisplayUi::clear(tft);
-  TDisplayUi::header(tft, "Knife Throw", TFT_ORANGE, (String("S") + String(score_)).c_str());
-  drawBoard(tft, BOARD_CX, BOARD_CY);
-  TDisplayUi::footer(tft, throwActive_ ? "Knife in flight..." : "B1 throw");
+  TDisplayFramebuffer::draw(tft, width, height, [&](auto& canvas) {
+    TDisplayUi::header(canvas, "Knife Throw", TFT_ORANGE, (String("S") + String(score_)).c_str());
+    drawBoard(canvas, BOARD_CX, BOARD_CY);
+    TDisplayUi::footer(canvas, throwActive_ ? "Knife in flight..." : "B1 throw");
+  });
 }
 
 void KnifeThrowGame::drawStart(TFT_eSPI& tft) { tft.fillScreen(TFT_BLACK);
