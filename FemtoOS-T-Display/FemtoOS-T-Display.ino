@@ -26,11 +26,11 @@
 #include "src/apps/PetSimulatorApp.h"
 #include "src/apps/ReadingApp.h"
 
-#include "src/games/BlackjackGame.h"
 #include "src/games/AlienRaidersGame.h"
 #include "src/games/Breakout76Game.h"
 #include "src/games/CaveChopperGame.h"
 #include "src/games/CityRacerGame.h"
+#include "src/games/FemtoCasinoGame.h"
 #include "src/games/FemtoFieldGame.h"
 #include "src/games/FishingFlickGame.h"
 #include "src/games/KnifeThrowGame.h"
@@ -89,7 +89,7 @@ PetSimulatorApp petSimulatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 ReadingApp readingApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 AlienRaidersGame alienRaidersGame(SCREEN_WIDTH, SCREEN_HEIGHT);
-BlackjackGame blackjackGame(SCREEN_WIDTH, SCREEN_HEIGHT);
+FemtoCasinoGame femtoCasinoGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 Breakout76Game breakout76Game(SCREEN_WIDTH, SCREEN_HEIGHT);
 CaveChopperGame caveChopperGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 CityRacerGame cityRacerGame(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -137,10 +137,10 @@ MenuEntry rootMenu[] = {
 
 MenuEntry gamesMenu[] = {
     {nullptr, MenuAction::Launch, &alienRaidersGame},
-    {nullptr, MenuAction::Launch, &blackjackGame},
     {nullptr, MenuAction::Launch, &breakout76Game},
     {nullptr, MenuAction::Launch, &caveChopperGame},
     {nullptr, MenuAction::Launch, &cityRacerGame},
+    {nullptr, MenuAction::Launch, &femtoCasinoGame},
     {nullptr, MenuAction::Launch, &femtoFieldGame},
     {nullptr, MenuAction::Launch, &fishingFlickGame},
     {nullptr, MenuAction::Launch, &knifeThrowGame},
@@ -186,10 +186,10 @@ MenuEntry settingsMenu[] = {
 
 App* autoLaunchChoices[] = {
     &alienRaidersGame,
-    &blackjackGame,
     &breakout76Game,
     &caveChopperGame,
     &cityRacerGame,
+    &femtoCasinoGame,
     &femtoFieldGame,
     &fishingFlickGame,
     &knifeThrowGame,

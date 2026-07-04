@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "App.h"
-#include "src/games/BlackjackGame.h"
 #include "src/games/AlienRaidersGame.h"
 #include "src/games/Breakout76Game.h"
 #include "src/games/CaveChopperGame.h"
@@ -18,6 +17,7 @@
 #include "src/apps/DistributedMinerApp.h"
 #include "src/apps/EspContactsApp.h"
 #include "src/games/FemtoFieldGame.h"
+#include "src/games/FemtoCasinoGame.h"
 #include "src/apps/FemtoMinerApp.h"
 #include "src/games/FishingFlickGame.h"
 #include "src/games/KnifeThrowGame.h"
@@ -74,7 +74,7 @@ FishingFlickGame fishingFlickGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 MazeRunnerGame mazeRunnerGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 MazeRunnerGame mazeCollectorGame(APP_WIDTH, APP_HEIGHT, APP_LEFT, true);
 PipeManiaGame pipeManiaGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
-BlackjackGame blackjackGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
+FemtoCasinoGame femtoCasinoGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 TinyGolfGame tinyGolfGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 TowerStackerGame towerStackerGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
 KnifeThrowGame knifeThrowGame(APP_WIDTH, APP_HEIGHT, APP_LEFT);
@@ -132,10 +132,10 @@ MenuEntry rootMenu[] = {
 
 MenuEntry gamesMenu[] = {
     {nullptr, MenuAction::Launch, &alienRaidersGame},
-    {nullptr, MenuAction::Launch, &blackjackGame},
     {nullptr, MenuAction::Launch, &breakout76Game},
     {nullptr, MenuAction::Launch, &caveChopperGame},
     {nullptr, MenuAction::Launch, &cityRacerGame},
+    {nullptr, MenuAction::Launch, &femtoCasinoGame},
     {nullptr, MenuAction::Launch, &femtoFieldGame},
     {nullptr, MenuAction::Launch, &fishingFlickGame},
     {nullptr, MenuAction::Launch, &knifeThrowGame},
