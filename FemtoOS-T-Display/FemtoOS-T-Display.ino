@@ -26,11 +26,11 @@
 #include "src/apps/PetSimulatorApp.h"
 #include "src/apps/ReadingApp.h"
 
-#include "src/games/BlackjackGame.h"
 #include "src/games/AlienRaidersGame.h"
 #include "src/games/Breakout76Game.h"
 #include "src/games/CaveChopperGame.h"
 #include "src/games/CityRacerGame.h"
+#include "src/games/FemtoCasinoGame.h"
 #include "src/games/FemtoFieldGame.h"
 #include "src/games/FishingFlickGame.h"
 #include "src/games/KnifeThrowGame.h"
@@ -42,6 +42,7 @@
 #include "src/games/PipeManiaGame.h"
 #include "src/games/SimonGame.h"
 #include "src/games/TinyGolfGame.h"
+#include "src/games/TongItsGame.h"
 #include "src/games/TowerStackerGame.h"
 
 #include "TDisplayUi.h"
@@ -89,7 +90,7 @@ PetSimulatorApp petSimulatorApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 ReadingApp readingApp(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 AlienRaidersGame alienRaidersGame(SCREEN_WIDTH, SCREEN_HEIGHT);
-BlackjackGame blackjackGame(SCREEN_WIDTH, SCREEN_HEIGHT);
+FemtoCasinoGame femtoCasinoGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 Breakout76Game breakout76Game(SCREEN_WIDTH, SCREEN_HEIGHT);
 CaveChopperGame caveChopperGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 CityRacerGame cityRacerGame(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -105,6 +106,7 @@ NuclearReactorGame nuclearReactorGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 PipeManiaGame pipeManiaGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 SimonGame simonGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 TinyGolfGame tinyGolfGame(SCREEN_WIDTH, SCREEN_HEIGHT);
+TongItsGame tongItsGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 TowerStackerGame towerStackerGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 enum class MenuView {
@@ -137,10 +139,10 @@ MenuEntry rootMenu[] = {
 
 MenuEntry gamesMenu[] = {
     {nullptr, MenuAction::Launch, &alienRaidersGame},
-    {nullptr, MenuAction::Launch, &blackjackGame},
     {nullptr, MenuAction::Launch, &breakout76Game},
     {nullptr, MenuAction::Launch, &caveChopperGame},
     {nullptr, MenuAction::Launch, &cityRacerGame},
+    {nullptr, MenuAction::Launch, &femtoCasinoGame},
     {nullptr, MenuAction::Launch, &femtoFieldGame},
     {nullptr, MenuAction::Launch, &fishingFlickGame},
     {nullptr, MenuAction::Launch, &knifeThrowGame},
@@ -154,6 +156,7 @@ MenuEntry gamesMenu[] = {
     {nullptr, MenuAction::Launch, &nuclearReactorGame},
     {nullptr, MenuAction::Launch, &simonGame},
     {nullptr, MenuAction::Launch, &tinyGolfGame},
+    {nullptr, MenuAction::Launch, &tongItsGame},
     {nullptr, MenuAction::Launch, &towerStackerGame},
     {"Back", MenuAction::Back, nullptr},
 };
@@ -186,10 +189,10 @@ MenuEntry settingsMenu[] = {
 
 App* autoLaunchChoices[] = {
     &alienRaidersGame,
-    &blackjackGame,
     &breakout76Game,
     &caveChopperGame,
     &cityRacerGame,
+    &femtoCasinoGame,
     &femtoFieldGame,
     &fishingFlickGame,
     &knifeThrowGame,
@@ -203,6 +206,7 @@ App* autoLaunchChoices[] = {
     &nuclearReactorGame,
     &simonGame,
     &tinyGolfGame,
+    &tongItsGame,
     &towerStackerGame,
     &clockApp,
     &stopwatchApp,

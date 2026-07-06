@@ -1,5 +1,13 @@
 # Release Notes
 
+## v2.1 b84
+
+- Added `Femto Casino` on C3 and T-Display, replacing the standalone Blackjack menu entry with a shared casino hub.
+- Added shared casino logic for Blackjack, Roulette, Slots, Texas Hold'em, and Video Poker, with a persistent bankroll, per-game betting, cash-out, and reset flow.
+- Improved casino presentation with T-Display card/suit rendering, slot spin/win highlighting, roulette spin feedback, and clearer Hold'em street/dealer labels.
+- Added a T-Display `Tong-its` first pass with shared rummy logic, draw/discard flow, meld exposure, discard-pickup enforcement, sapaw/layoff onto exposed melds, bot turns, and stock-empty deadwood scoring.
+- Added game guide documentation for Tong-its and linked game guides from the README/docs index.
+
 ## v2.1 b83
 
 - Stabilized T-Display rendering by moving the main app and game draw paths onto a single shared reusable full-screen framebuffer.

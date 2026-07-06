@@ -28,7 +28,7 @@ const SaveEntry SAVE_ENTRIES[] = {
     {"MazeRun", "maze"},
     {"MazeColl", "mazecol"},
     {"Pipe", "pipe"},
-    {"Blackjack", "blackjack"},
+    {"Casino", "casino"},
     {"Golf", "golf"},
     {"Tower", "tower"},
     {"Knife", "knife"},
