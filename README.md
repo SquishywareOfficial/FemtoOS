@@ -10,6 +10,7 @@ Quick links:
 - [Release notes](RELEASE_NOTES.md)
 - [Documentation index](docs/README.md)
 - [Flashing guide](docs/flashing.md)
+- [Game guides](docs/games.md)
 - [Mouse Emulator (Mouse Jiggler) guide](docs/mouse-emulator.md)
 - [Femto Miner guide](docs/femto-miner.md)
 - [Distributed Miner guide](docs/distributed-miner.md)

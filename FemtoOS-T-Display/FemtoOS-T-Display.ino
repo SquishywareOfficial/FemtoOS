@@ -42,6 +42,7 @@
 #include "src/games/PipeManiaGame.h"
 #include "src/games/SimonGame.h"
 #include "src/games/TinyGolfGame.h"
+#include "src/games/TongItsGame.h"
 #include "src/games/TowerStackerGame.h"
 
 #include "TDisplayUi.h"
@@ -105,6 +106,7 @@ NuclearReactorGame nuclearReactorGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 PipeManiaGame pipeManiaGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 SimonGame simonGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 TinyGolfGame tinyGolfGame(SCREEN_WIDTH, SCREEN_HEIGHT);
+TongItsGame tongItsGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 TowerStackerGame towerStackerGame(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 enum class MenuView {
@@ -154,6 +156,7 @@ MenuEntry gamesMenu[] = {
     {nullptr, MenuAction::Launch, &nuclearReactorGame},
     {nullptr, MenuAction::Launch, &simonGame},
     {nullptr, MenuAction::Launch, &tinyGolfGame},
+    {nullptr, MenuAction::Launch, &tongItsGame},
     {nullptr, MenuAction::Launch, &towerStackerGame},
     {"Back", MenuAction::Back, nullptr},
 };
@@ -203,6 +206,7 @@ App* autoLaunchChoices[] = {
     &nuclearReactorGame,
     &simonGame,
     &tinyGolfGame,
+    &tongItsGame,
     &towerStackerGame,
     &clockApp,
     &stopwatchApp,

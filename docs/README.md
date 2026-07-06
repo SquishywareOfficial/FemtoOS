@@ -5,6 +5,7 @@ Focused docs for Femto OS setup, flashing, and larger app workflows.
 ## User Guides
 
 - [Flashing Femto OS](flashing.md)
+- [Game guides](games.md)
 - [Mouse Emulator (Mouse Jiggler)](mouse-emulator.md)
 - [Femto Miner](femto-miner.md)
 - [Distributed Miner](distributed-miner.md)
